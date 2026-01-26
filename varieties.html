@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>品種一覧 | オリーブオイル品種ガイド</title>
+    <meta name="description" content="エキストラバージンオリーブオイルの品種一覧から特徴を調べる">
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="index.html" class="site-title">オリーブオイル品種ガイド</a>
+            <nav class="site-nav">
+                <a href="index.html" class="nav-link">トップ</a>
+                <a href="varieties.html" class="nav-link active">品種一覧</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Page Header -->
+        <section class="page-header">
+            <div class="page-header-image"></div>
+            <div class="container">
+                <h1 class="page-title">品種一覧</h1>
+                <p class="page-description">品種名から特徴を調べることができます</p>
+            </div>
+        </section>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="container">
+                <div class="search-form">
+                    <div class="search-field">
+                        <label for="search-name" class="search-label">品種名で検索</label>
+                        <input type="text" id="search-name" class="search-input" placeholder="タジャスカ、Leccino など" />
+                    </div>
+                    <div class="search-field">
+                        <label for="search-origin" class="search-label">原産地で絞り込み</label>
+                        <select id="search-origin" class="search-select">
+                            <option value="">すべて</option>
+                            <option value="リグーリア">リグーリア州</option>
+                            <option value="トスカーナ">トスカーナ州</option>
+                            <option value="シチリア">シチリア州</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Varieties Grid -->
+        <section class="varieties-grid-section">
+            <div class="container">
+                <div class="varieties-grid" id="varieties-grid">
+                    <!-- Dynamically populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Back to Top -->
+        <section class="page-footer-nav">
+            <div class="container">
+                <a href="index.html" class="footer-link">トップに戻る</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="page-footer">
+        <div class="container">
+            <p class="footer-text">© 2026 オリーブオイル品種ガイド</p>
+        </div>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="varieties.js"></script>
+</body>
+
+</html>

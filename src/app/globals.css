@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+:root {
+    --paper-bg: #FAF9F6;
+    --ink-color: #1A1A1A;
+    --background: var(--paper-bg);
+    --foreground: var(--ink-color);
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    transition: background-color 1.5s ease;
+}
+
+/* Glass card effect */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Book shadow */
+.book-shadow {
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+}
+
+/* Glow effect for preview */
+.glow-effect {
+    box-shadow: 0 0 80px 30px rgba(59, 130, 246, 0.2);
+}
+
+/* Drawer Animation */
+.drawer {
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drawer.open {
+    transform: translateY(0);
+}
+
+.drawer-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Hide scrollbar but allow scroll */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Book card hover effect */
+.book-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.book-card:hover {
+    transform: translateY(-8px) scale(1.02);
+}
+
+/* Selected book glow */
+.book-selected {
+    box-shadow: 0 0 0 3px #3b82f6, 0 10px 30px -5px rgba(59, 130, 246, 0.4);
+}
+
+/* Selected book glow (amber) */
+.selected-glow {
+    box-shadow: 0 0 20px 5px rgba(251, 191, 36, 0.5);
+}
+
+/* Modal animation */
+.modal {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.modal.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal.open .modal-content {
+    transform: scale(1) translateY(0);
+}
+
+/* Typing cursor */
+.typing-cursor {
+    display: inline-block;
+    width: 3px;
+    height: 1.2em;
+    background: currentColor;
+    margin-left: 2px;
+    animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* Loading pulse */
+.loading-pulse {
+    animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+/* Color fade background */
+.bg-fade {
+    transition: background 1.5s ease-in-out;
+}
+
+/* Title shimmer effect */
+.shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Genre chip styles */
+.genre-chip {
+    transition: all 0.2s ease;
+}
+
+.genre-chip:hover {
+    transform: scale(1.02);
+}
+
+.genre-chip.active {
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}

@@ -4,11 +4,11 @@ import "./globals.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
-    title: "THE FIVE - 私を形作る、5つの物語",
+    title: "THE FIVE ｜ あなたの正体を、5冊で読み解く。",
     description: "好きなマンガ5冊を選んで、AIがあなたの感性を読み解き、特別な「二つ名」を命名します。",
     metadataBase: new URL(siteUrl),
     openGraph: {
-        title: "THE FIVE - 私を形作る、5つの物語",
+        title: "THE FIVE ｜ あなたの正体を、5冊で読み解く。",
         description: "好きなマンガ5冊を選んで、AIがあなたの感性を読み解き、特別な「二つ名」を命名します。",
         type: "website",
         url: siteUrl,
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
                 url: `${siteUrl}/api/og`,
                 width: 1200,
                 height: 630,
-                alt: "THE FIVE - 私を形作る、5つの物語",
+                alt: "THE FIVE ｜ あなたの正体を、5冊で読み解く。",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "THE FIVE - 私を形作る、5つの物語",
+        title: "THE FIVE ｜ あなたの正体を、5冊で読み解く。",
         description: "好きなマンガ5冊を選んで、AIがあなたの感性を読み解き、特別な「二つ名」を命名します。",
         images: [`${siteUrl}/api/og`],
     },

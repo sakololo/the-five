@@ -224,35 +224,77 @@ const MOCK_MANGA_DATA: Book[] = [
 
 const GENRES = ['all', '少年', '少女', '青年', 'SF', 'ファンタジー', '恋愛'];
 
-// Mock AI appraisals
+// Mock AI appraisals - 平易化・構造固定・イジりしろ強化版
 const MOCK_APPRAISALS: Record<string, { titles: string[]; analysis: string }> = {
   '少年': {
-    titles: ['熱血の求道者', '永遠の挑戦者', '覇道を歩む者', '不屈の闘志'],
-    analysis: 'あなたの魂には「挑戦」と「成長」への飽くなき渇望が宿っています。困難に立ち向かうヒーローたちの物語に惹かれるあなたは、自身も常に高みを目指し続ける生き方を選んでいます。'
+    titles: [
+      '勝利を渇望する週刊少年の申し子',
+      '友情を信じすぎる熱血バカ',
+      '努力を愛する汗くさい理想主義者',
+      '正義を叫ぶ声がデカい主人公体質',
+      '仲間を集めたがる天性のリーダー気質'
+    ],
+    analysis: 'あなたは「熱い展開」と「仲間との絆」が大好物ですね。主人公が覚醒するシーンで涙しがち。現実でも周りを巻き込んで何かを始めたいタイプでは？'
   },
   '少女': {
-    titles: ['純愛の守護者', '心の翻訳者', '感情の錬金術師', '絆を紡ぐ者'],
-    analysis: 'あなたの魂は「人と人との繋がり」を何より大切にしています。登場人物の心の機微を丁寧に描いた作品を好むあなたは、共感力と想像力に満ちた、温かい心の持ち主です。'
+    titles: [
+      '恋愛を観察する壁の花',
+      '感情移入しすぎて疲れる共感マシーン',
+      '三角関係を楽しむ恋愛脳',
+      'キュンを求めてさまよう乙女心',
+      '推しカプを守りたい過保護オタク'
+    ],
+    analysis: 'あなたは人の気持ちの動きを追うのが得意（というか好き）ですね。「この二人くっつけ！」と叫びたくなるタイプ。友達の恋愛相談、よく受けません？'
   },
   '青年': {
-    titles: ['深淵の思索者', '真実の探求者', '暗黒を見据える者', '現実の解読者'],
-    analysis: 'あなたの魂は表面的な物語では満足しません。人間の本質、社会の闇、生と死の境界線——そういった深いテーマに真正面から向き合う強さを持っています。'
+    titles: [
+      '闇を覗きたがる中二病サバイバー',
+      '現実を直視しすぎて疲れる大人',
+      '人間の業を味わいたいドM読者',
+      '重いテーマを好む考えすぎ人間',
+      'ダークサイドに惹かれる厨二の残り香'
+    ],
+    analysis: 'あなたは「綺麗事じゃない話」に惹かれますね。ハッピーエンドより、考えさせられるラストが好き。周りから「なんでそんな重い話好きなの？」と言われがち。'
   },
   'SF': {
-    titles: ['未来の預言者', '科学の夢想家', '可能性の開拓者', '時空を超える者'],
-    analysis: 'あなたの魂は「まだ見ぬ世界」への強い好奇心で満ちています。テクノロジーと人間性の交差点に興味を持つあなたは、既存の枠にとらわれない自由な発想の持ち主です。'
+    titles: [
+      '未来を夢見る空想科学オタク',
+      '可能性を追い求める浪漫主義者',
+      'もしもの世界に逃避したい現実疲れ',
+      '科学と哲学の間で迷子になりがちな人',
+      'ディストピアを楽しむ悲観的楽観主義者'
+    ],
+    analysis: 'あなたは「現実にはない世界」を覗くのが好きですね。テクノロジーの話になると早口になりがち。「もし〇〇だったら」という話で1時間語れるタイプでは？'
   },
   'ファンタジー': {
-    titles: ['異界の旅人', '魔法を纏う者', '神話の継承者', '冒険の化身'],
-    analysis: 'あなたの魂は日常を超えた「可能性」を信じています。魔法や冒険に惹かれるあなたは、現実世界でも創造性と想像力を武器に、自分だけの道を切り開いていく力を持っています。'
+    titles: [
+      '異世界に転生したい現実逃避マスター',
+      '冒険を夢見る安全地帯の住人',
+      '魔法を信じたい大人になりきれない大人',
+      'チート能力に憧れる努力嫌い',
+      '世界観設定を語り出すと止まらないオタク'
+    ],
+    analysis: 'あなたは「ここではない世界」への憧れが強いですね。異世界モノで「俺だったらこうする」と妄想しがち。日常に刺激が足りないと感じていません？'
   },
   '恋愛': {
-    titles: ['愛の哲学者', '心の架け橋', '永遠を誓う者', '運命の紡ぎ手'],
-    analysis: 'あなたの魂は「愛」という普遍的なテーマに深い関心を持っています。人を愛し、愛されることの尊さを知るあなたは、日々の中にある小さな幸せを見つける目を持っています。'
+    titles: [
+      '恋に恋する永遠の夢見がち',
+      'ときめきを求めて三千里',
+      '両思いを見届けたい幸せ配達人',
+      'ラブコメで心を満たすロマンチスト',
+      'すれ違いにヤキモキする情緒不安定読者'
+    ],
+    analysis: 'あなたは「人を好きになる気持ち」を大切にしていますね。告白シーンでドキドキしがち。実は自分も甘い展開に憧れているのでは？'
   },
   'mixed': {
-    titles: ['多彩なる魂', '越境者', '全てを愛する者', '無限の可能性'],
-    analysis: 'あなたの読書傾向は一つのジャンルに収まりません。様々なジャンルを横断するあなたは、多角的な視点と豊かな感受性を持ち、どんな世界観も受け入れられる柔軟な精神の持ち主です。'
+    titles: [
+      '何でも読む雑食系マンガ愛好家',
+      'ジャンルを選ばない欲張りさん',
+      '面白ければ何でもいい主義者',
+      '本棚がカオスな読書家',
+      '話題作は一通りチェックするミーハー'
+    ],
+    analysis: 'あなたは「面白い」が正義、ジャンルは気にしないタイプですね。友達におすすめを聞かれると困るほど守備範囲が広い。本棚を見せたら性格バレそう。'
   }
 };
 
@@ -298,15 +340,15 @@ function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps
         className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded shadow-lg hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 ${mode === 'magazine' ? 'border-white/30' : 'border-white'} overflow-hidden relative`}
       >
         <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
-        {/* Remove button */}
+        {/* Remove button - Always visible on mobile, hover on desktop */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             onRemove(index);
           }}
-          className="absolute top-1 right-1 w-5 h-5 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
+          className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 sm:w-5 sm:h-5 bg-white/90 hover:bg-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-md z-10"
         >
-          <span className="text-gray-700 text-xs font-bold">×</span>
+          <span className="text-gray-700 text-[10px] sm:text-xs font-bold">×</span>
         </button>
       </div>
       <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/60' : 'text-gray-400'}`}>{book.volume}巻</span>
@@ -329,6 +371,15 @@ export default function Home() {
   const [isAppraising, setIsAppraising] = useState(false);
   const [appraisalResult, setAppraisalResult] = useState<AppraisalResult | null>(null);
   const [displayedTitle, setDisplayedTitle] = useState('');
+
+  // 2-step modal display: showDetails controls action buttons visibility
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Preview image for responsive display
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Disclaimer modal
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
 
   // Toast state
   const [showToast, setShowToast] = useState(false);
@@ -379,6 +430,63 @@ export default function Home() {
     showToastMessage('選択をリセットしました');
   };
 
+  // Format soul title with line breaks for long titles
+  // Pattern: [対象]を[動詞][肊書き] -> break before the title/肊書き
+  const formatSoulTitle = (title: string) => {
+    // If title is short enough, no need to break
+    if (title.length <= 10) return title;
+
+    // Common verb endings that might precede a title
+    const verbPatterns = ['る', 'す', 'た', 'な', 'の'];
+
+    // Try to find を and break after the verb that follows it
+    const woIndex = title.indexOf('を');
+    if (woIndex > 0 && woIndex < title.length - 3) {
+      // Look for a verb ending after を
+      for (let i = woIndex + 2; i < Math.min(woIndex + 6, title.length - 1); i++) {
+        if (verbPatterns.includes(title[i])) {
+          return (
+            <>
+              {title.slice(0, i + 1)}
+              <br />
+              {title.slice(i + 1)}
+            </>
+          );
+        }
+      }
+      // If no verb found, break after を
+      return (
+        <>
+          {title.slice(0, woIndex + 1)}
+          <br />
+          {title.slice(woIndex + 1)}
+        </>
+      );
+    }
+
+    // Try to break at the last の before a title-like suffix
+    const lastNoIndex = title.lastIndexOf('の');
+    if (lastNoIndex > 3 && lastNoIndex < title.length - 2) {
+      return (
+        <>
+          {title.slice(0, lastNoIndex + 1)}
+          <br />
+          {title.slice(lastNoIndex + 1)}
+        </>
+      );
+    }
+
+    // Default: break at roughly 60% point
+    const breakPoint = Math.floor(title.length * 0.6);
+    return (
+      <>
+        {title.slice(0, breakPoint)}
+        <br />
+        {title.slice(breakPoint)}
+      </>
+    );
+  };
+
   // Reset and close modal
   const resetAndCloseModal = () => {
     setShowAppraisalModal(false);
@@ -393,23 +501,26 @@ export default function Home() {
   // Share to X (Twitter)
   const shareToX = () => {
     if (!appraisalResult) return;
-    const bookTitles = selectedBooks.map((b) => b.manga.title).join('\n・');
+
+    // Truncate long titles to 12 characters
+    const truncateTitle = (title: string, maxLen: number = 12) => {
+      return title.length > maxLen ? title.slice(0, maxLen) + '…' : title;
+    };
+
+    const bookTitles = selectedBooks.map((b) => truncateTitle(b.manga.title)).join('\n・');
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const bookIds = selectedBooks.map((b) => `${b.manga.id}-${b.volume}`).join(',');
     const shareUrl = `${siteUrl}?books=${encodeURIComponent(bookIds)}&title=${encodeURIComponent(appraisalResult.soulTitle)}`;
 
-    const text = `【鑑定完了】私の人生を形作る5冊はこれ！
+    const text = `【鑑定完了】私の5冊はこれ！
 
-▪︎ 選んだ5冊
 ・${bookTitles}
 
-▪︎ AIが授けた私の二つ名は…
-　『 ${appraisalResult.soulTitle} 』
+二つ名『${appraisalResult.soulTitle}』
 
-　あなたの最高の5冊は？ここで鑑定 ▷
-${shareUrl}
+▶ ${shareUrl}
 
-#THE_FIVE #マンガ鑑定 #私を構成する5冊`;
+#THE_FIVE #私を構成する5冊`;
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(twitterUrl, '_blank');
@@ -490,6 +601,8 @@ ${shareUrl}
     setIsAppraising(true);
     setAppraisalResult(null);
     setDisplayedTitle('');
+    setShowDetails(false);
+    setPreviewImage(null);
 
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2500));
@@ -501,34 +614,160 @@ ${shareUrl}
     setAppraisalResult({ soulTitle, analysis: appraisal.analysis });
     setIsAppraising(false);
 
+    // Generate preview image for responsive display
+    setTimeout(async () => {
+      const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
+      const card = document.getElementById(cardId) as HTMLElement | null;
+      if (!card) {
+        console.error('Share card not found:', cardId);
+        return;
+      }
+
+      try {
+        // Make card visible for rendering
+        card.style.visibility = 'visible';
+
+        // Wait for images to load
+        const images = card.querySelectorAll('img');
+        await Promise.all(
+          Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+              // Timeout after 3 seconds
+              setTimeout(resolve, 3000);
+            });
+          })
+        );
+
+        // Small delay to ensure rendering is complete
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const dataUrl = await htmlToImage.toPng(card, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
+          skipFonts: true,
+          cacheBust: true,
+        });
+
+        // Hide card again
+        card.style.visibility = 'hidden';
+
+        setPreviewImage(dataUrl);
+      } catch (e) {
+        console.error('Preview generation failed:', e);
+
+        // Hide card on error
+        card.style.visibility = 'hidden';
+
+        // Retry once
+        setTimeout(async () => {
+          try {
+            card.style.visibility = 'visible';
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const dataUrl = await htmlToImage.toPng(card, {
+              quality: 0.8,
+              pixelRatio: 2,
+              backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
+              skipFonts: true,
+            });
+
+            card.style.visibility = 'hidden';
+            setPreviewImage(dataUrl);
+          } catch (retryError) {
+            console.error('Retry failed:', retryError);
+            card.style.visibility = 'hidden';
+          }
+        }, 500);
+      }
+    }, 1500);
+
     // Typing effect
     for (let i = 0; i <= soulTitle.length; i++) {
       await new Promise(resolve => setTimeout(resolve, 100));
       setDisplayedTitle(soulTitle.slice(0, i));
     }
+
+    // Show details after typing completes (2.5 seconds after result)
+    setTimeout(() => setShowDetails(true), 500);
   };
 
-  // Save image based on current mode
+  // Save image based on current mode with Web Share API support
   const saveImage = async () => {
     const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
     const card = document.getElementById(cardId);
     if (!card || typeof window === 'undefined') return;
 
+    showToastMessage('鑑定書を作成中...');
+
     try {
       const dataUrl = await htmlToImage.toPng(card, {
         quality: 1,
         pixelRatio: 3,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
+        backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
+        skipFonts: true,
+        filter: (node) => {
+          if (node instanceof HTMLLinkElement && node.href.includes('fonts.googleapis.com')) {
+            return false;
+          }
+          return true;
+        },
       });
 
-      const link = document.createElement('a');
-      link.download = `the-five-${mode}-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
+      // Convert dataUrl to Blob
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `the-five-${mode}-${Date.now()}.png`, { type: 'image/png' });
+
+      // Check Web Share API support
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'THE FIVE - 私の5冊',
+            text: appraisalResult ? `二つ名『${appraisalResult.soulTitle}』` : '私の５冊',
+          });
+          showToastMessage('共有メニューを開きました！');
+        } catch (shareError) {
+          // User cancelled or share failed, fallback to download
+          if ((shareError as Error).name !== 'AbortError') {
+            const link = document.createElement('a');
+            link.download = file.name;
+            link.href = dataUrl;
+            link.click();
+            showToastMessage('画像を保存しました！');
+          }
+        }
+      } else {
+        // Fallback: download
+        const link = document.createElement('a');
+        link.download = file.name;
+        link.href = dataUrl;
+        link.click();
+        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
+      }
     } catch (error) {
       console.error('Image save error:', error);
-      showToastMessage('画像の保存中にエラーが発生しました。');
+      // Retry with lower quality
+      try {
+        const dataUrl = await htmlToImage.toPng(card, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
+          skipFonts: true,
+        });
+        const link = document.createElement('a');
+        link.download = `the-five-${mode}-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+        showToastMessage('画像を保存しました！');
+      } catch (retryError) {
+        console.error('Retry failed:', retryError);
+        showToastMessage('画像の保存に失敗しました。スクリーンショットをご利用ください。');
+      }
     }
   };
 
@@ -574,12 +813,12 @@ ${shareUrl}
                 className="text-base leading-loose opacity-85"
                 style={{ fontFamily: "'Kaisei Tokumin', serif", lineHeight: '2' }}
               >
-                好きなマンガ、そして人生で最も記憶に残っている<br />
+                大好きで、人生で最も記憶に残っている<br />
                 <span className="font-bold text-lg">5冊</span>を選んでください。
               </p>
               <p
                 className="text-sm mt-3 opacity-70 leading-relaxed"
-                style={{ fontFamily: "'Kaisei Tokumin', serif'" }}
+                style={{ fontFamily: "'Kaisei Tokumin', serif" }}
               >
                 5つの表紙を1枚の美しい画像にまとめるとともに、<br />
                 AIがあなたの感性を読み解き、特別な<span className="font-semibold">「二つ名」</span>を命名します。
@@ -588,7 +827,7 @@ ${shareUrl}
                 className="text-xs mt-3 opacity-50"
                 style={{ fontFamily: "'Kaisei Tokumin', serif" }}
               >
-                ※AIによる命名のない5冊の表紙だけの画像も作れます。
+                ※AIによる二つ名なしの5冊の表紙だけの画像も作れます。
               </p>
             </div>
 
@@ -599,8 +838,8 @@ ${shareUrl}
                 <button
                   onClick={() => setMode('magazine')}
                   className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${mode === 'magazine'
-                    ? 'bg-white shadow-md font-bold text-gray-800'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   二つ名あり
@@ -608,8 +847,8 @@ ${shareUrl}
                 <button
                   onClick={() => setMode('gallery')}
                   className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${mode === 'gallery'
-                    ? 'bg-white shadow-md font-bold text-gray-800'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   二つ名なし
@@ -725,21 +964,20 @@ ${shareUrl}
                       style={mode === 'magazine' ? { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.8)' } : undefined}
                     >
                       {selectedBooks.length === 5 ? (
-                        <span className={`animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
-                          ✨ ドラッグで並び替えできます（スマホは長押し）
-                        </span>
+                        <>
+                          {/* Mobile: show long-press message */}
+                          <span className={`sm:hidden animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
+                            長押しで並び替えできます
+                          </span>
+                          {/* Desktop: show drag message */}
+                          <span className={`hidden sm:inline animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
+                            ドラッグで並び替えできます
+                          </span>
+                        </>
                       ) : (
                         <>本を選んでください（{selectedBooks.length}/5冊）</>
                       )}
                     </p>
-                    {selectedBooks.length > 0 && (
-                      <button
-                        onClick={resetSelection}
-                        className={`text-xs mt-2 transition ${mode === 'magazine' ? 'text-white/50 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                      >
-                        🗑️ 選択をリセット
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -764,7 +1002,7 @@ ${shareUrl}
           <section className="mb-10">
 
             <div className="flex flex-col items-center gap-4 mb-2">
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center gap-2">
                 <button
                   onClick={startAppraisal}
                   disabled={!isFull}
@@ -772,6 +1010,14 @@ ${shareUrl}
                 >
                   生成する
                 </button>
+                {selectedBooks.length > 0 && (
+                  <button
+                    onClick={resetSelection}
+                    className="text-sm text-gray-400 hover:text-red-500 transition flex items-center gap-1"
+                  >
+                    <span>×</span> 選んだ本を削除
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -784,22 +1030,25 @@ ${shareUrl}
             </div>
 
             <div className="glass-card rounded-3xl p-6 shadow-xl">
-              <div className="flex gap-3 mb-6">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="マンガを検索...（例：ワンピ、スラダン）"
-                  className="flex-1 px-5 py-3.5 rounded-xl border-0 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner text-gray-700 font-medium placeholder:text-gray-400"
-                />
-                <button className="px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg shadow-blue-500/25">
-                  検索
-                </button>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2">🔍 マンガを検索</label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="タイトルや作者名を入力（例：ワンピ、スラダン）"
+                    className="flex-1 px-5 py-4 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 text-base"
+                  />
+                  <button className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg shadow-blue-500/25">
+                    検索
+                  </button>
+                </div>
               </div>
 
               {/* Genre Section with Label */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500">📚 カテゴリーから探す</p>
+                <p className="text-xs font-medium text-gray-500">カテゴリーから探す</p>
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                   {GENRES.map((genre) => (
                     <button
@@ -819,7 +1068,7 @@ ${shareUrl}
               {/* Recommendations when search is empty */}
               {!searchQuery.trim() && currentGenre === 'all' && (
                 <div className="mt-6 pt-4 border-t border-gray-200/50">
-                  <p className="text-xs font-medium text-gray-500 mb-3">🔥 みんなが選んでいる作品</p>
+                  <p className="text-xs font-medium text-gray-500 mb-3">みんなが選んでいる作品</p>
                   <div className="flex flex-wrap gap-2">
                     {RECOMMENDED_MANGA.slice(0, 8).map((manga, i) => (
                       <button
@@ -840,7 +1089,7 @@ ${shareUrl}
           <section className="mb-8">
             <div className="text-center mb-3">
               <h2 className="text-base font-bold text-gray-800 mb-0.5">検索結果</h2>
-              <p className="text-xs text-gray-500">1巻のサムネイルをタップして巻を選択</p>
+              <p className="text-xs text-gray-500">1巻のサムネイルをタップして他の巻を選択</p>
             </div>
 
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -888,6 +1137,13 @@ ${shareUrl}
         <footer className="py-8 mt-12">
           <p className="text-center text-sm text-gray-500 font-medium">THE FIVE © 2026</p>
           <p className="text-center text-xs text-gray-400 mt-1">最高の5冊を選び、AIに鑑定してもらおう</p>
+          <button
+            onClick={() => setShowDisclaimerModal(true)}
+            className="block mx-auto mt-4 text-xs text-gray-400 hover:text-gray-600 underline transition"
+            style={{ fontFamily: "'Kaisei Tokumin', serif" }}
+          >
+            免責事項・著作権について
+          </button>
         </footer>
       </div >
 
@@ -958,130 +1214,178 @@ ${shareUrl}
         </div>
       </div>
 
-      {/* AI Appraisal Modal */}
-      <div className={`modal fixed inset-0 z-[60] flex items-center justify-center p-4 ${showAppraisalModal ? 'open' : ''}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 bg-fade" />
-        <div className="modal-content relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          {isAppraising ? (
-            <div className="text-center py-20">
-              <div className="loading-pulse inline-block mb-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-2xl">
-                  <span className="text-4xl">📚</span>
-                </div>
+      {/* Hidden Share Cards for html-to-image capture - MUST be outside modal for reliable rendering */}
+      {appraisalResult && (
+        <>
+          <div
+            id="share-card-full"
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: 800,
+              height: 450,
+              visibility: 'hidden',
+              zIndex: -1,
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.25)' }} />
+            <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 24 }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 8 }}>YOUR SOUL NAME</p>
+                <h2 style={{ fontSize: 28, fontWeight: 900, color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{appraisalResult.soulTitle}</h2>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">あなたの魂を鑑定中...</h3>
-              <p className="text-white/60 text-sm">選ばれた5冊から、あなたの本質を読み解いています</p>
-              <div className="flex justify-center gap-1 mt-4">
-                <div className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                <div className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <div className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
+                {selectedBooks.map((book) => (
+                  <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>2026.01</p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="share-card-simple"
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: 800,
+              height: 450,
+              backgroundColor: '#FAF9F6',
+              visibility: 'hidden',
+              zIndex: -1,
+            }}
+          >
+            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: 24 }}>
+              <div style={{ textAlign: 'center' }}>
+                <h2 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '0.05em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif" }}>私の５冊</h2>
+                <p style={{ fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', marginTop: 8, color: '#666', fontWeight: 500 }}>THE FIVE</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
+                {selectedBooks.map((book) => (
+                  <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
+                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* AI Appraisal Modal */}
+      <div className={`modal fixed inset-0 z-[60] flex items-center justify-center ${showAppraisalModal ? 'open' : ''}`}>
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-100/30 via-purple-100/20 to-pink-100/30" />
+
+        <div className="modal-content relative w-full h-full overflow-y-auto overflow-x-hidden">
+          {isAppraising ? (
+            /* Loading State */
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-center py-20">
+                <div className="loading-pulse inline-block mb-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-2xl">
+                    <span className="text-4xl">📚</span>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">本棚を製作し、あなたの正体を分析中...</h3>
+                <p className="text-gray-500 text-sm">選ばれた5冊から、あなたの本質を読み解いています</p>
+                <div className="flex justify-center gap-1 mt-4">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                </div>
               </div>
             </div>
           ) : appraisalResult && (
-            <div>
-              {/* Share Card (for capture) */}
-              <div id="share-card-full" className="relative mx-auto rounded-2xl overflow-hidden" style={{ width: 800, aspectRatio: '16/9' }}>
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-                <div className="absolute inset-0 bg-white/25" />
-                <div className="relative z-10 h-full flex flex-col justify-between p-6">
-                  <div className="text-center">
-                    <p className="text-white/50 text-[10px] tracking-[0.3em] uppercase mb-2">YOUR SOUL NAME</p>
-                    <h2 className="text-2xl md:text-3xl font-black text-white drop-shadow-lg">{appraisalResult.soulTitle}</h2>
+            /* Result Display */
+            <div className="flex flex-col items-center py-8 px-4">
+              {/* Step 1: Immersion Mode - Image + Title Only */}
+              <div className="w-full max-w-md">
+                {previewImage ? (
+                  <img
+                    src={previewImage}
+                    alt="鑑定結果"
+                    className="w-full rounded-2xl shadow-2xl"
+                  />
+                ) : (
+                  <div className="w-full aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl animate-pulse flex items-center justify-center">
+                    <span className="text-gray-400 text-sm">画像を生成中...</span>
                   </div>
-                  <div className="flex justify-center items-end gap-5 px-16">
-                    {selectedBooks.map((book) => (
-                      <div key={`${book.manga.id}-${book.volume}`} className={`w-28 h-40 bg-gradient-to-br ${book.manga.coverColor} rounded shadow-lg border-2 border-white/30 overflow-hidden`}>
-                        <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-end">
-                    <p className="text-white/40 text-[10px]">2026.01</p>
-                  </div>
-                </div>
+                )}
               </div>
 
-              {/* Simple Share Card (hidden for capture) */}
-              <div id="share-card-simple" className="fixed -left-[9999px]" style={{ width: 800, aspectRatio: '16/9' }}>
-                <div className="w-full h-full flex flex-col justify-center items-center gap-6 p-6" style={{ backgroundColor: '#FAF9F6' }}>
-                  <div className="text-center">
-                    <h2
-                      className="text-4xl font-bold tracking-wide"
-                      style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A' }}
-                    >
-                      私の５冊
-                    </h2>
-                    <p className="text-xs tracking-[0.3em] uppercase mt-2" style={{ color: '#666', fontWeight: 500 }}>
-                      THE FIVE
-                    </p>
-                  </div>
-                  <div className="flex items-end gap-8 px-20">
-                    {selectedBooks.map((book) => (
-                      <div key={`simple-${book.manga.id}-${book.volume}`} className={`w-32 h-48 bg-gradient-to-br ${book.manga.coverColor} rounded-lg shadow-xl overflow-hidden`}>
-                        <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Title Display */}
-              <div className="text-center py-4">
-                <h2 className="text-3xl md:text-5xl font-black text-white drop-shadow-lg mb-2">
-                  {displayedTitle}
-                  <span className="typing-cursor text-amber-400" />
+              {/* Soul Title */}
+              <div className="text-center py-6 px-4">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-800 leading-tight">
+                  {appraisalResult ? formatSoulTitle(displayedTitle) : displayedTitle}
+                  {displayedTitle.length < (appraisalResult?.soulTitle?.length || 0) && (
+                    <span className="typing-cursor text-blue-500" />
+                  )}
                 </h2>
               </div>
 
-              {/* Analysis Text */}
-              <div className="glass-card rounded-2xl p-6 mx-4 mb-6">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                  <span>🔮</span> AI鑑定結果
-                </h4>
-                <p className="text-gray-600 text-sm leading-relaxed">{appraisalResult.analysis}</p>
-              </div>
+              {/* Step 2: Action Mode - Slides up after typing completes */}
+              <div
+                className={`w-full max-w-md transition-all duration-700 ease-out ${showDetails
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-10 pointer-events-none'
+                  }`}
+              >
+                {/* Analysis */}
+                <div className="glass-card rounded-2xl p-5 mb-6">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span>🔮</span> AI鑑定結果
+                  </h4>
+                  <p className="text-gray-600 text-sm leading-relaxed">{appraisalResult.analysis}</p>
+                </div>
 
-              {/* Action Buttons - Priority Order */}
-              <div className="flex flex-col items-center gap-4 pb-8 px-4">
-                {/* X Share Button - Top Priority */}
-                <button
-                  onClick={shareToX}
-                  className="w-full max-w-md px-8 py-5 bg-black hover:bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
-                >
-                  <span className="text-2xl">𝕏</span>
-                  <span>でシェア</span>
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-col items-center gap-3">
+                  <button
+                    onClick={shareToX}
+                    className="w-full px-8 py-4 bg-black hover:bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
+                  >
+                    <span className="text-xl">𝕏</span>
+                    <span>でシェア</span>
+                  </button>
 
-                {/* Save Image Button */}
-                <button
-                  onClick={saveImage}
-                  className="w-full max-w-md px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition flex items-center justify-center gap-2"
-                >
-                  <span>💾</span> 画像を保存
-                </button>
+                  <button
+                    onClick={saveImage}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition flex items-center justify-center gap-2"
+                  >
+                    <span>💾</span> 画像を保存・共有
+                  </button>
 
-                {/* Reset and Try Again Button */}
-                <button
-                  onClick={resetAndCloseModal}
-                  className="w-full max-w-md px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-medium transition flex items-center justify-center gap-2 border border-white/30"
-                >
-                  <span>🔄</span> もう一度選ぶ（リセット）
-                </button>
+                  <button
+                    onClick={resetAndCloseModal}
+                    className="w-full px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition flex items-center justify-center gap-2 border border-gray-200"
+                  >
+                    もう一度選ぶ（リセット）
+                  </button>
 
-                {/* Close Button - Subtle */}
-                <button
-                  onClick={() => setShowAppraisalModal(false)}
-                  className="text-white/50 hover:text-white text-sm mt-2 transition"
-                >
-                  閉じる
-                </button>
+                  <button
+                    onClick={() => setShowAppraisalModal(false)}
+                    className="text-gray-400 hover:text-gray-600 text-sm mt-1 transition"
+                  >
+                    閉じる
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1098,6 +1402,67 @@ ${shareUrl}
           <p className="font-medium text-gray-800">{toastMessage}</p>
         </div>
       </div>
+
+      {/* Disclaimer Modal */}
+      {showDisclaimerModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDisclaimerModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
+            <button
+              onClick={() => setShowDisclaimerModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+            >
+              ✕
+            </button>
+
+            <div style={{ fontFamily: "'Kaisei Tokumin', serif" }}>
+              <h2 className="text-lg font-bold text-gray-800 mb-4">著作権および画像利用について</h2>
+
+              <div className="text-sm text-gray-600 leading-relaxed space-y-4">
+                <p>
+                  当サイト（THE FIVE）は、個人のマンガファンによる非営利のファン活動として運営されています。
+                </p>
+
+                <p>
+                  サイト内で表示される書影（表紙画像）および作品情報は、<strong>「楽天ブックス書籍検索API」</strong>等の公式APIを通じて取得したデータを利用しており、その著作権は各著者・出版社等、正当な権利者に帰属します。
+                </p>
+
+                <p>
+                  当サイトは、著作権の侵害を目的としたものではありません。提供される情報の正確性には細心の注意を払っておりますが、万一、権利者様からの削除依頼や掲載内容の修正依頼があった場合は、事実確認の上、速やかに対応させていただきます。
+                </p>
+
+                <p>
+                  <a
+                    href="https://twitter.com/messages/compose?recipient_id=antigravity_dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    お問い合わせ・ご連絡先（XのDM）
+                  </a>
+                  までご連絡いただけますようお願い申し上げます。
+                </p>
+
+                <h3 className="text-md font-bold text-gray-800 pt-4">免責事項</h3>
+
+                <p>
+                  当サイトの利用（画像の保存やシェア等を含む）によって生じた損害やトラブルについて、運営者は一切の責任を負いかねます。あらかじめご了承ください。
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowDisclaimerModal(false)}
+                className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

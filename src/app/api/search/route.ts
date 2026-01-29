@@ -5,19 +5,83 @@ const requestCounts = new Map<string, { count: number; timestamp: number }>();
 const RATE_LIMIT = 10; // requests per minute
 const RATE_WINDOW = 60 * 1000; // 1 minute
 
+// Alias dictionary for popular manga
+const MANGA_ALIASES: Record<string, string> = {
+  'ワンピ': 'ONE PIECE',
+  'ワンピース': 'ONE PIECE',
+  'スラダン': 'SLAM DUNK',
+  'スラムダンク': 'SLAM DUNK',
+  'DB': 'ドラゴンボール',
+  'ドラボ': 'ドラゴンボール',
+  'キメツ': '鬼滅の刃',
+  'きめつ': '鬼滅の刃',
+  'シンゲキ': '進撃の巨人',
+  '進撃': '進撃の巨人',
+  'ジュジュツ': '呪術廻戦',
+  '呪術': '呪術廻戦',
+  'スパイファミリー': 'SPY×FAMILY',
+  'スパファミ': 'SPY×FAMILY',
+  'フリーレン': '葬送のフリーレン',
+  'チェンソー': 'チェンソーマン',
+  'ナルト': 'NARUTO',
+  'ブリーチ': 'BLEACH',
+  'ハイキュー': 'ハイキュー!!',
+  'ヒロアカ': '僕のヒーローアカデミア',
+  'ハガレン': '鋼の錬金術師',
+  'エヴァ': '新世紀エヴァンゲリオン',
+  'ジョジョ': 'ジョジョの奇妙な冒険',
+  'キングダム': 'キングダム',
+  'コナン': '名探偵コナン',
+  'ワンパン': 'ワンパンマン',
+  'モブサイコ': 'モブサイコ100',
+  'ハンター': 'HUNTER×HUNTER',
+  'ハンタ': 'HUNTER×HUNTER',
+  'るろ剣': 'るろうに剣心',
+  'るろうに': 'るろうに剣心',
+  'デスノ': 'DEATH NOTE',
+  'デスノート': 'DEATH NOTE',
+  '銀魂': '銀魂',
+  'ぎんたま': '銀魂',
+  'フルバ': 'フルーツバスケット',
+  'ホリミヤ': 'ホリミヤ',
+  'かぐや': 'かぐや様は告らせたい',
+  '推しの子': '【推しの子】',
+  'おしのこ': '【推しの子】',
+  'アオアシ': 'アオアシ',
+  'ブルロ': 'ブルーロック',
+  'ブルーロック': 'ブルーロック',
+  '東リベ': '東京卍リベンジャーズ',
+  '東京リベンジャーズ': '東京卍リベンジャーズ',
+  'カイジ': '賭博黙示録カイジ',
+  'バキ': '刃牙',
+  'グラップラー': 'グラップラー刃牙',
+  'ベルセルク': 'ベルセルク',
+  'バガボンド': 'バガボンド',
+  'リアル': 'リアル',
+  '宇宙兄弟': '宇宙兄弟',
+  'ドクスト': 'Dr.STONE',
+  'ドクターストーン': 'Dr.STONE',
+  '約ネバ': '約束のネバーランド',
+  '黒バス': '黒子のバスケ',
+  'テニプリ': 'テニスの王子様',
+  'マッシュル': 'マッシュル',
+  'アンデラ': 'アンデッドアンラック',
+  'サカモト': 'サカモトデイズ',
+};
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = requestCounts.get(ip);
-  
+
   if (!record || (now - record.timestamp) > RATE_WINDOW) {
     requestCounts.set(ip, { count: 1, timestamp: now });
     return true;
   }
-  
+
   if (record.count >= RATE_LIMIT) {
     return false;
   }
-  
+
   record.count++;
   return true;
 }
@@ -31,17 +95,115 @@ function getClientIP(request: NextRequest): string {
 function validateOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin') || '';
   const referer = request.headers.get('referer') || '';
-  
+
   // Allow localhost for development
   const allowedOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
     process.env.NEXT_PUBLIC_SITE_URL || ''
   ].filter(Boolean);
-  
-  return allowedOrigins.some(allowed => 
+
+  return allowedOrigins.some(allowed =>
     origin.startsWith(allowed) || referer.startsWith(allowed)
   ) || origin === '' && referer === ''; // Allow direct server calls
+}
+
+// Normalize search query
+function normalizeQuery(query: string): string {
+  let normalized = query.trim();
+
+  // Convert half-width katakana to full-width
+  normalized = normalized.replace(/[\uff66-\uff9f]/g, (char) => {
+    const code = char.charCodeAt(0);
+    return String.fromCharCode(code - 0xff66 + 0x30a2);
+  });
+
+  // Convert hiragana to katakana
+  normalized = normalized.replace(/[\u3041-\u3096]/g, (char) => {
+    return String.fromCharCode(char.charCodeAt(0) + 0x60);
+  });
+
+  // Check alias dictionary
+  const aliasResult = MANGA_ALIASES[normalized] || MANGA_ALIASES[query.trim()];
+  if (aliasResult) {
+    return aliasResult;
+  }
+
+  return normalized;
+}
+
+// Fetch books from Rakuten API
+async function fetchBooks(
+  appId: string,
+  searchType: 'title' | 'author',
+  query: string
+): Promise<Record<string, unknown>[]> {
+  const params = new URLSearchParams({
+    applicationId: appId,
+    format: 'json',
+    hits: '20',
+    sort: 'sales',
+    booksGenreId: '001001', // コミック
+  });
+
+  params.append(searchType, query);
+
+  const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
+
+  const response = await fetch(apiUrl, {
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Rakuten API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.Items || [];
+}
+
+// Transform and deduplicate books
+function transformBooks(items: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  const books: Record<string, unknown>[] = [];
+
+  for (const item of items) {
+    const book = item.Item as Record<string, unknown>;
+    const isbn = book.isbn as string;
+
+    // Skip duplicates
+    if (isbn && seen.has(isbn)) continue;
+    if (isbn) seen.add(isbn);
+
+    const coverUrl = (book.largeImageUrl || book.mediumImageUrl || book.smallImageUrl || '') as string;
+
+    books.push({
+      id: books.length + 1,
+      title: book.title || '',
+      author: book.author || '',
+      publisher: book.publisherName || '',
+      isbn: isbn || '',
+      coverUrl: coverUrl,
+      hasImage: !!coverUrl,
+      volumeNumber: extractVolumeNumber(book.title as string),
+    });
+  }
+
+  return books;
+}
+
+// Sort books: with images first, then without
+function sortBooks(books: Record<string, unknown>[]): Record<string, unknown>[] {
+  return books.sort((a, b) => {
+    const aHasImage = a.hasImage as boolean;
+    const bHasImage = b.hasImage as boolean;
+
+    if (aHasImage && !bHasImage) return -1;
+    if (!aHasImage && bHasImage) return 1;
+    return 0;
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -83,49 +245,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Build Rakuten Books API URL
-    const params = new URLSearchParams({
-      applicationId: appId,
-      format: 'json',
-      hits: '30',
-      sort: 'sales',
-      booksGenreId: '001001', // コミック
+    // Normalize the query
+    const normalizedQuery = normalizeQuery(query);
+
+    // Parallel search: title and author
+    const [titleResults, authorResults] = await Promise.all([
+      fetchBooks(appId, 'title', normalizedQuery),
+      fetchBooks(appId, 'author', normalizedQuery),
+    ]);
+
+    // Merge and deduplicate results
+    const allItems = [...titleResults, ...authorResults];
+    const books = transformBooks(allItems);
+
+    // Sort: images first
+    const sortedBooks = sortBooks(books);
+
+    return NextResponse.json({
+      books: sortedBooks,
+      total: sortedBooks.length,
+      normalizedQuery: normalizedQuery !== query ? normalizedQuery : undefined,
     });
-
-    if (query) {
-      params.append('title', query);
-    }
-
-    const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Rakuten API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Transform response to our format
-    const books = (data.Items || []).map((item: Record<string, unknown>, index: number) => {
-      const book = item.Item as Record<string, unknown>;
-      return {
-        id: index + 1,
-        title: book.title || '',
-        author: book.author || '',
-        publisher: book.publisherName || '',
-        isbn: book.isbn || '',
-        coverUrl: book.largeImageUrl || book.mediumImageUrl || book.smallImageUrl || '',
-        // Extract volume number from title if present
-        volumeNumber: extractVolumeNumber(book.title as string),
-      };
-    });
-
-    return NextResponse.json({ books, total: data.count || 0 });
 
   } catch (error) {
     console.error('Search API error:', error);
@@ -138,6 +278,6 @@ export async function GET(request: NextRequest) {
 
 function extractVolumeNumber(title: string): number | null {
   // Try to extract volume number from title (e.g., "ワンピース 1" or "ワンピース(1)")
-  const match = title.match(/[(\s](\d+)[)\s]?$/);
+  const match = title.match(/[(（\s](\d+)[)）\s]?$/);
   return match ? parseInt(match[1], 10) : null;
 }

@@ -2,6 +2,106 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as htmlToImage from 'html-to-image';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// Recommended manga for empty state
+const RECOMMENDED_MANGA = [
+  { title: 'ONE PIECE', author: '尾田栄一郎', category: '殿堂入りの名作' },
+  { title: 'SLAM DUNK', author: '井上雄彦', category: '殿堂入りの名作' },
+  { title: 'ドラゴンボール', author: '鳥山明', category: '殿堂入りの名作' },
+  { title: '鬼滅の刃', author: '吾峠呼世晴', category: '人気作品' },
+  { title: '進撃の巨人', author: '諫山創', category: '人気作品' },
+  { title: '呪術廻戦', author: '芥見下々', category: '人気作品' },
+  { title: 'SPY×FAMILY', author: '遠藤達哉', category: '人気作品' },
+  { title: '葬送のフリーレン', author: '山田鐘人', category: '人気作品' },
+  { title: 'チェンソーマン', author: '藤本タツキ', category: '人気作品' },
+  { title: 'NARUTO', author: '岸本斉史', category: '殿堂入りの名作' },
+  { title: 'BLEACH', author: '久保帯人', category: '殿堂入りの名作' },
+  { title: 'ハイキュー!!', author: '古舘春一', category: '人気作品' },
+];
+
+// Alias dictionary for popular manga
+const MANGA_ALIASES: Record<string, string> = {
+  'ワンピ': 'ONE PIECE',
+  'ワンピース': 'ONE PIECE',
+  'スラダン': 'SLAM DUNK',
+  'スラムダンク': 'SLAM DUNK',
+  'DB': 'ドラゴンボール',
+  'ドラボ': 'ドラゴンボール',
+  'キメツ': '鬼滅の刃',
+  'きめつ': '鬼滅の刃',
+  'シンゲキ': '進撃の巨人',
+  '進撃': '進撃の巨人',
+  'ジュジュツ': '呪術廻戦',
+  '呪術': '呪術廻戦',
+  'スパイファミリー': 'SPY×FAMILY',
+  'スパファミ': 'SPY×FAMILY',
+  'フリーレン': '葬送のフリーレン',
+  'チェンソー': 'チェンソーマン',
+  'ナルト': 'NARUTO',
+  'ブリーチ': 'BLEACH',
+  'ハイキュー': 'ハイキュー!!',
+  'ヒロアカ': '僕のヒーローアカデミア',
+  'ハガレン': '鋼の錬金術師',
+  'エヴァ': '新世紀エヴァンゲリオン',
+  'ジョジョ': 'ジョジョの奇妙な冒険',
+  'キングダム': 'キングダム',
+  'コナン': '名探偵コナン',
+  'ワンパン': 'ワンパンマン',
+  'モブサイコ': 'モブサイコ100',
+  'ハンター': 'HUNTER×HUNTER',
+  'ハンタ': 'HUNTER×HUNTER',
+  'るろ剣': 'るろうに剣心',
+  'るろうに': 'るろうに剣心',
+  'デスノ': 'DEATH NOTE',
+  'デスノート': 'DEATH NOTE',
+  '銀魂': '銀魂',
+  'ぎんたま': '銀魂',
+  'フルバ': 'フルーツバスケット',
+  'ホリミヤ': 'ホリミヤ',
+  'かぐや': 'かぐや様は告らせたい',
+  '推しの子': '【推しの子】',
+  'おしのこ': '【推しの子】',
+  'アオアシ': 'アオアシ',
+  'ブルロ': 'ブルーロック',
+  'ブルーロック': 'ブルーロック',
+  '東リベ': '東京卍リベンジャーズ',
+  '東京リベンジャーズ': '東京卍リベンジャーズ',
+  'ゴリラ': 'ゴリラーマン',
+  'カイジ': '賭博黙示録カイジ',
+  'バキ': '刃牙',
+  'グラップラー': 'グラップラー刃牙',
+  'ベルセルク': 'ベルセルク',
+  'バガボンド': 'バガボンド',
+  'リアル': 'リアル',
+  '宇宙兄弟': '宇宙兄弟',
+  'ドクスト': 'Dr.STONE',
+  'ドクターストーン': 'Dr.STONE',
+  '約ネバ': '約束のネバーランド',
+  '約束のネバーランド': '約束のネバーランド',
+  '黒バス': '黒子のバスケ',
+  'テニプリ': 'テニスの王子様',
+  'マッシュル': 'マッシュル',
+  'アンデラ': 'アンデッドアンラック',
+  'サカモト': 'サカモトデイズ',
+};
 
 // Types
 interface Book {
@@ -156,6 +256,64 @@ const MOCK_APPRAISALS: Record<string, { titles: string[]; analysis: string }> = 
   }
 };
 
+// Sortable Book Item Component for drag and drop
+interface SortableBookItemProps {
+  book: SelectedBook;
+  index: number;
+  mode: 'magazine' | 'gallery';
+  onRemove: (index: number) => void;
+}
+
+function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `${book.manga.id}-${book.volume}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  const isFeatured = index === 2;
+  const baseSize = isFeatured
+    ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
+    : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex flex-col items-center gap-2 relative group"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded shadow-lg hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 ${mode === 'magazine' ? 'border-white/30' : 'border-white'} overflow-hidden relative`}
+      >
+        <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
+        {/* Remove button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(index);
+          }}
+          className="absolute top-1 right-1 w-5 h-5 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
+        >
+          <span className="text-gray-700 text-xs font-bold">×</span>
+        </button>
+      </div>
+      <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/60' : 'text-gray-400'}`}>{book.volume}巻</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedBooks, setSelectedBooks] = useState<SelectedBook[]>([]);
   const [currentGenre, setCurrentGenre] = useState('all');
@@ -175,6 +333,87 @@ export default function Home() {
   // Toast state
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // DnD Kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSelectedBooks((items) => {
+        const oldIndex = items.findIndex(
+          (item) => `${item.manga.id}-${item.volume}` === active.id
+        );
+        const newIndex = items.findIndex(
+          (item) => `${item.manga.id}-${item.volume}` === over.id
+        );
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  // Remove a book from selection
+  const removeBook = (index: number) => {
+    setSelectedBooks((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Reset all selected books
+  const resetSelection = () => {
+    setSelectedBooks([]);
+    showToastMessage('選択をリセットしました');
+  };
+
+  // Reset and close modal
+  const resetAndCloseModal = () => {
+    setShowAppraisalModal(false);
+    setSelectedBooks([]);
+    setAppraisalResult(null);
+    // Scroll to search section
+    setTimeout(() => {
+      document.getElementById('search-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  // Share to X (Twitter)
+  const shareToX = () => {
+    if (!appraisalResult) return;
+    const bookTitles = selectedBooks.map((b) => b.manga.title).join('\n・');
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const bookIds = selectedBooks.map((b) => `${b.manga.id}-${b.volume}`).join(',');
+    const shareUrl = `${siteUrl}?books=${encodeURIComponent(bookIds)}&title=${encodeURIComponent(appraisalResult.soulTitle)}`;
+
+    const text = `【鑑定完了】私の人生を形作る5冊はこれ！
+
+▪︎ 選んだ5冊
+・${bookTitles}
+
+▪︎ AIが授けた私の二つ名は…
+　『 ${appraisalResult.soulTitle} 』
+
+　あなたの最高の5冊は？ここで鑑定 ▷
+${shareUrl}
+
+#THE_FIVE #マンガ鑑定 #私を構成する5冊`;
+
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(twitterUrl, '_blank');
+  };
 
   // Filter manga
   const filteredManga = (() => {
@@ -269,9 +508,9 @@ export default function Home() {
     }
   };
 
-  // Save image
-  const saveImage = async (type: 'full' | 'simple') => {
-    const cardId = type === 'full' ? 'share-card-full' : 'share-card-simple';
+  // Save image based on current mode
+  const saveImage = async () => {
+    const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
     const card = document.getElementById(cardId);
     if (!card || typeof window === 'undefined') return;
 
@@ -279,14 +518,14 @@ export default function Home() {
       const dataUrl = await htmlToImage.toPng(card, {
         quality: 1,
         pixelRatio: 3,
-        backgroundColor: type === 'simple' ? '#FAF9F6' : undefined,
+        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
       });
 
       const link = document.createElement('a');
-      link.download = `the-five-${type}-${Date.now()}.png`;
+      link.download = `the-five-${mode}-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      showToastMessage('画像を保存しました！');
+      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
     } catch (error) {
       console.error('Image save error:', error);
       showToastMessage('画像の保存中にエラーが発生しました。');
@@ -330,16 +569,23 @@ export default function Home() {
             </div>
 
             {/* Description */}
-            <div className="max-w-lg text-center px-4">
+            <div className="max-w-xl text-center px-4">
               <p
-                className="text-sm leading-relaxed opacity-80"
-                style={{ fontFamily: "'Kaisei Tokumin', serif" }}
+                className="text-base leading-loose opacity-85"
+                style={{ fontFamily: "'Kaisei Tokumin', serif", lineHeight: '2' }}
               >
-                好きなマンガ、そして人生で最も記憶に残っている5冊を選んでください。<br />
-                5つの表紙を1枚の美しい画像にまとめるとともに、AIがあなたの感性を読み解き、特別な「二つ名」を命名します。
+                好きなマンガ、そして人生で最も記憶に残っている<br />
+                <span className="font-bold text-lg">5冊</span>を選んでください。
               </p>
               <p
-                className="text-xs mt-2 opacity-50"
+                className="text-sm mt-3 opacity-70 leading-relaxed"
+                style={{ fontFamily: "'Kaisei Tokumin', serif'" }}
+              >
+                5つの表紙を1枚の美しい画像にまとめるとともに、<br />
+                AIがあなたの感性を読み解き、特別な<span className="font-semibold">「二つ名」</span>を命名します。
+              </p>
+              <p
+                className="text-xs mt-3 opacity-50"
                 style={{ fontFamily: "'Kaisei Tokumin', serif" }}
               >
                 ※AIによる命名のない5冊の表紙だけの画像も作れます。
@@ -426,48 +672,75 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Books Area */}
+                {/* Books Area with Drag and Drop */}
                 <div className="relative z-10 flex-1 p-2 md:p-4 flex flex-col items-center justify-center">
-                  <div className="flex items-end gap-2 md:gap-7 px-2 md:px-16 w-full justify-center">
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const book = selectedBooks[i];
-                      const isFeatured = i === 2;
-                      // Responsive sizes: Mobile -> Desktop
-                      const baseSize = isFeatured
-                        ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
-                        : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
-
-                      if (book) {
-                        return (
-                          <div key={`${book.manga.id}-${book.volume}`} className="flex flex-col items-center gap-2">
-                            <div
-                              className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded shadow-lg hover:scale-105 hover:-translate-y-2 transition-all cursor-pointer border-2 ${mode === 'magazine' ? 'border-white/30' : 'border-white'} overflow-hidden`}
-                            >
-                              <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
-                            </div>
-                            <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/60' : 'text-gray-400'}`}>{book.volume}巻</span>
-                          </div>
-                        );
-                      } else {
-                        return (
-                          <div key={`empty-${i}`} className="flex flex-col items-center gap-2">
-                            <div
-                              className={`${baseSize} rounded shadow-inner border-2 border-dashed ${mode === 'magazine' ? 'border-white/80 bg-white/30' : 'border-gray-300 bg-white/30'} flex items-center justify-center`}
-                            >
-                              <span className={`text-2xl font-light ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>{i + 1}</span>
-                            </div>
-                            <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>—</span>
-                          </div>
-                        );
-                      }
-                    })}
-                  </div>
-                  <p
-                    className={`text-sm mt-4 ${mode === 'magazine' ? 'text-white font-bold' : 'text-gray-400'}`}
-                    style={mode === 'magazine' ? { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.8)' } : undefined}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                   >
-                    本を選んでください（{selectedBooks.length}/5冊）
-                  </p>
+                    <SortableContext
+                      items={selectedBooks.map((b) => `${b.manga.id}-${b.volume}`)}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      <div className="flex items-end gap-2 md:gap-7 px-2 md:px-16 w-full justify-center">
+                        {Array.from({ length: 5 }, (_, i) => {
+                          const book = selectedBooks[i];
+                          const isFeatured = i === 2;
+                          const baseSize = isFeatured
+                            ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
+                            : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
+
+                          if (book) {
+                            return (
+                              <SortableBookItem
+                                key={`${book.manga.id}-${book.volume}`}
+                                book={book}
+                                index={i}
+                                mode={mode}
+                                onRemove={removeBook}
+                              />
+                            );
+                          } else {
+                            return (
+                              <div key={`empty-${i}`} className="flex flex-col items-center gap-2">
+                                <div
+                                  className={`${baseSize} rounded shadow-inner border-2 border-dashed ${mode === 'magazine' ? 'border-white/80 bg-white/30' : 'border-gray-300 bg-white/30'} flex items-center justify-center`}
+                                >
+                                  <span className={`text-2xl font-light ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>{i + 1}</span>
+                                </div>
+                                <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>—</span>
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+
+                  {/* Instruction Text */}
+                  <div className="text-center mt-4">
+                    <p
+                      className={`text-sm ${mode === 'magazine' ? 'text-white font-bold' : 'text-gray-500'}`}
+                      style={mode === 'magazine' ? { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.8)' } : undefined}
+                    >
+                      {selectedBooks.length === 5 ? (
+                        <span className={`animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
+                          ✨ ドラッグで並び替えできます（スマホは長押し）
+                        </span>
+                      ) : (
+                        <>本を選んでください（{selectedBooks.length}/5冊）</>
+                      )}
+                    </p>
+                    {selectedBooks.length > 0 && (
+                      <button
+                        onClick={resetSelection}
+                        className={`text-xs mt-2 transition ${mode === 'magazine' ? 'text-white/50 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        🗑️ 選択をリセット
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Footer */}
@@ -504,19 +777,19 @@ export default function Home() {
           </section>
 
           {/* Search Section */}
-          <section className="mb-8">
+          <section id="search-section" className="mb-8">
             <div className="text-center mb-3">
               <h2 className="text-base font-bold text-gray-800 mb-0.5">本を探す</h2>
               <p className="text-xs text-gray-500">タイトル・作者名で検索、またはジャンルで絞り込み</p>
             </div>
 
             <div className="glass-card rounded-3xl p-6 shadow-xl">
-              <div className="flex gap-3 mb-4">
+              <div className="flex gap-3 mb-6">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="マンガを検索..."
+                  placeholder="マンガを検索...（例：ワンピ、スラダン）"
                   className="flex-1 px-5 py-3.5 rounded-xl border-0 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner text-gray-700 font-medium placeholder:text-gray-400"
                 />
                 <button className="px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg shadow-blue-500/25">
@@ -524,21 +797,42 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Genre Chips */}
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {GENRES.map((genre) => (
-                  <button
-                    key={genre}
-                    onClick={() => setCurrentGenre(genre)}
-                    className={`genre-chip px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition ${currentGenre === genre
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                      }`}
-                  >
-                    {genre === 'all' ? 'すべて' : genre}
-                  </button>
-                ))}
+              {/* Genre Section with Label */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-500">📚 カテゴリーから探す</p>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {GENRES.map((genre) => (
+                    <button
+                      key={genre}
+                      onClick={() => setCurrentGenre(genre)}
+                      className={`genre-chip px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition ${currentGenre === genre
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md'
+                        : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      {genre === 'all' ? 'すべて' : genre}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Recommendations when search is empty */}
+              {!searchQuery.trim() && currentGenre === 'all' && (
+                <div className="mt-6 pt-4 border-t border-gray-200/50">
+                  <p className="text-xs font-medium text-gray-500 mb-3">🔥 みんなが選んでいる作品</p>
+                  <div className="flex flex-wrap gap-2">
+                    {RECOMMENDED_MANGA.slice(0, 8).map((manga, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSearchQuery(manga.title)}
+                        className="px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-indigo-50 text-gray-700 hover:text-blue-700 rounded-lg text-xs font-medium transition border border-gray-200 hover:border-blue-200"
+                      >
+                        {manga.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
@@ -754,23 +1048,34 @@ export default function Home() {
                 <p className="text-gray-600 text-sm leading-relaxed">{appraisalResult.analysis}</p>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col items-center gap-4 pb-8">
-                <p className="text-white/60 text-xs">画像の種類を選択</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => saveImage('full')}
-                    className="px-5 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition flex items-center gap-2"
-                  >
-                    <span>📝</span> フルバージョン
-                  </button>
-                  <button
-                    onClick={() => saveImage('simple')}
-                    className="px-5 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-medium transition flex items-center gap-2 border border-white/30"
-                  >
-                    <span>📷</span> シンプル
-                  </button>
-                </div>
+              {/* Action Buttons - Priority Order */}
+              <div className="flex flex-col items-center gap-4 pb-8 px-4">
+                {/* X Share Button - Top Priority */}
+                <button
+                  onClick={shareToX}
+                  className="w-full max-w-md px-8 py-5 bg-black hover:bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <span className="text-2xl">𝕏</span>
+                  <span>でシェア</span>
+                </button>
+
+                {/* Save Image Button */}
+                <button
+                  onClick={saveImage}
+                  className="w-full max-w-md px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition flex items-center justify-center gap-2"
+                >
+                  <span>💾</span> 画像を保存
+                </button>
+
+                {/* Reset and Try Again Button */}
+                <button
+                  onClick={resetAndCloseModal}
+                  className="w-full max-w-md px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-medium transition flex items-center justify-center gap-2 border border-white/30"
+                >
+                  <span>🔄</span> もう一度選ぶ（リセット）
+                </button>
+
+                {/* Close Button - Subtle */}
                 <button
                   onClick={() => setShowAppraisalModal(false)}
                   className="text-white/50 hover:text-white text-sm mt-2 transition"

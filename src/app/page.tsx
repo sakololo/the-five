@@ -397,6 +397,9 @@ export default function Home() {
   // Saving state for X share
   const [isSaving, setIsSaving] = useState(false);
 
+  // Category state for shelf title
+  const [category, setCategory] = useState<'identity' | 'recommend'>('identity');
+
   // DnD Kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -865,7 +868,7 @@ export default function Home() {
       }));
 
       // Save to Supabase
-      const shelfId = await saveShelf(booksData, mode);
+      const shelfId = await saveShelf(booksData, mode, category);
 
       if (!shelfId) {
         throw new Error('Failed to save shelf');
@@ -987,6 +990,31 @@ export default function Home() {
                 </button>
               </div>
             </div>
+
+            {/* Category Selection - 本棚タイトル選択 */}
+            <div className="flex flex-col items-center gap-2 mt-6">
+              <p className="text-sm font-medium text-gray-400">本棚のタイトル</p>
+              <div className="glass-card flex rounded-full p-1.5 gap-1">
+                <button
+                  onClick={() => setCategory('identity')}
+                  className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${category === 'identity'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  あなたを、5冊で。
+                </button>
+                <button
+                  onClick={() => setCategory('recommend')}
+                  className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${category === 'recommend'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  おすすめの5冊
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -1025,9 +1053,11 @@ export default function Home() {
                   {mode === 'magazine' ? (
                     <>
                       <h2 className="text-2xl md:text-3xl font-black text-white drop-shadow-lg" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                        My Best Five
+                        {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
                       </h2>
-                      <p className="text-white/60 text-xs tracking-[0.3em] uppercase mt-1">私を形づくる5冊</p>
+                      <p className="text-white/60 text-xs tracking-widest uppercase mt-1" style={{ letterSpacing: '0.1em' }}>
+                        {category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}
+                      </p>
                     </>
                   ) : (
                     <>
@@ -1035,10 +1065,10 @@ export default function Home() {
                         className="text-3xl md:text-4xl tracking-wide"
                         style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
                       >
-                        My Best Five
+                        {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
                       </h2>
-                      <p className="text-xs tracking-[0.3em] uppercase mt-2" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>
-                        私を形づくる5冊
+                      <p className="text-xs tracking-widest uppercase mt-2" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
+                        {category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}
                       </p>
                     </>
                   )}

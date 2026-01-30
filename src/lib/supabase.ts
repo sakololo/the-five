@@ -15,6 +15,7 @@ export interface ShelfData {
   created_at?: string;
   books: BookData[];
   theme: 'magazine' | 'gallery';
+  category?: 'identity' | 'recommend';
 }
 
 export interface BookData {
@@ -27,13 +28,18 @@ export interface BookData {
 }
 
 // Save shelf to Supabase
-export async function saveShelf(books: BookData[], theme: 'magazine' | 'gallery'): Promise<string | null> {
+export async function saveShelf(
+  books: BookData[],
+  theme: 'magazine' | 'gallery',
+  category: 'identity' | 'recommend' = 'identity'
+): Promise<string | null> {
   try {
     const { data, error } = await supabase
       .from('THE-FIVE')
       .insert({
         books,
         theme,
+        category,
       })
       .select('id')
       .single();

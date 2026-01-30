@@ -11,6 +11,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { id } = await params;
     const shelf = await getShelf(id);
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://the-five.vercel.app';
+
     if (!shelf) {
         return {
             title: 'THE FIVE - 本棚が見つかりません',
@@ -18,21 +20,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     const bookTitles = shelf.books.map(b => b.title).join('、');
+    const categoryTitle = shelf.category === 'recommend'
+        ? 'THE FIVE - 今おすすめしたい、5冊。'
+        : 'THE FIVE - あなたを、5冊で。';
+    const ogImageUrl = `${siteUrl}/shelf/${id}/opengraph-image`;
 
     return {
-        title: 'THE FIVE - 私を形づくる5冊',
+        title: categoryTitle,
         description: `${bookTitles}`,
         openGraph: {
-            title: 'THE FIVE - 私を形づくる5冊',
+            title: categoryTitle,
             description: `${bookTitles}`,
             type: 'website',
-            images: [`/shelf/${id}/opengraph-image`],
+            images: [ogImageUrl],
         },
         twitter: {
             card: 'summary_large_image',
-            title: 'THE FIVE - 私を形づくる5冊',
+            title: categoryTitle,
             description: `${bookTitles}`,
-            images: [`/shelf/${id}/opengraph-image`],
+            images: [ogImageUrl],
         },
     };
 }

@@ -8,6 +8,9 @@ interface ShelfDisplayProps {
 
 export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
     const isMagazine = shelf.theme === 'magazine';
+    const categoryTitle = shelf.category === 'recommend'
+        ? '今おすすめしたい、5冊。'
+        : 'あなたを、5冊で。';
 
     return (
         <div
@@ -40,23 +43,23 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                                 className="text-2xl md:text-3xl font-black text-white drop-shadow-lg"
                                 style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
                             >
-                                My Best Five
+                                {categoryTitle}
                             </h2>
-                            <p className="text-white/60 text-xs tracking-[0.3em] uppercase mt-1">私を形づくる5冊</p>
+                            <p className="text-white/60 text-xs tracking-[0.3em] uppercase mt-1">THE FIVE</p>
                         </>
                     ) : (
                         <>
                             <h2
-                                className="text-3xl md:text-4xl tracking-wide"
-                                style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
+                                className="text-2xl md:text-3xl tracking-wide"
+                                style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 400 }}
                             >
-                                My Best Five
+                                {categoryTitle}
                             </h2>
                             <p
                                 className="text-xs tracking-[0.3em] uppercase mt-2"
                                 style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}
                             >
-                                私を形づくる5冊
+                                THE FIVE
                             </p>
                         </>
                     )}
@@ -77,8 +80,8 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={`${size} rounded-lg overflow-hidden transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer ${isMagazine
-                                        ? 'shadow-2xl border-2 border-white/30'
-                                        : 'shadow-lg hover:shadow-xl'
+                                    ? 'shadow-2xl border-2 border-white/30'
+                                    : 'shadow-lg hover:shadow-xl'
                                     }`}
                                 title={`${book.title} ${book.volume}巻 - 楽天ブックスで見る`}
                             >

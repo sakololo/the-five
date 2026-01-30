@@ -41,6 +41,9 @@ export default async function Image({ params }: Props) {
     }
 
     const isMagazine = shelf.theme === 'magazine';
+    const categoryTitle = shelf.category === 'recommend'
+        ? '今おすすめしたい、5冊。'
+        : 'あなたを、5冊で。';
 
     return new ImageResponse(
         (
@@ -71,14 +74,14 @@ export default async function Image({ params }: Props) {
                 >
                     <div
                         style={{
-                            fontSize: 56,
+                            fontSize: 52,
                             fontWeight: 900,
                             color: isMagazine ? 'white' : '#1A1A1A',
                             textShadow: isMagazine ? '0 4px 20px rgba(0,0,0,0.5)' : 'none',
                             letterSpacing: '0.05em',
                         }}
                     >
-                        My Best Five
+                        {categoryTitle}
                     </div>
                     <div
                         style={{
@@ -88,7 +91,7 @@ export default async function Image({ params }: Props) {
                             marginTop: 8,
                         }}
                     >
-                        私を形づくる5冊
+                        THE FIVE
                     </div>
                 </div>
 

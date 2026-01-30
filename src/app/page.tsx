@@ -797,19 +797,32 @@ export default function Home() {
     showToastMessage('本棚画像を作成中...');
 
     try {
-      // Make card visible for rendering
+      // Make card visible and positioned on-screen for rendering
+      const originalStyles = {
+        visibility: card.style.visibility,
+        position: card.style.position,
+        left: card.style.left,
+        zIndex: card.style.zIndex,
+      };
       card.style.visibility = 'visible';
-      await new Promise(resolve => setTimeout(resolve, 300));
+      card.style.position = 'absolute';
+      card.style.left = '0px';
+      card.style.zIndex = '9999';
+
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const dataUrl = await htmlToImage.toPng(card, {
         quality: 1,
-        pixelRatio: 3,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-        skipFonts: true,
+        pixelRatio: 2,
+        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
+        cacheBust: true,
       });
 
-      // Hide card again
-      card.style.visibility = 'hidden';
+      // Restore original styles
+      card.style.visibility = originalStyles.visibility;
+      card.style.position = originalStyles.position;
+      card.style.left = originalStyles.left;
+      card.style.zIndex = originalStyles.zIndex;
 
       // Convert dataUrl to Blob
       const response = await fetch(dataUrl);
@@ -821,8 +834,8 @@ export default function Home() {
         try {
           await navigator.share({
             files: [file],
-            title: 'My Best Five - 私を形づくる5冊',
-            text: '私を形づくる5冊',
+            title: category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。',
+            text: category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。',
           });
           showToastMessage('共有メニューを開きました！');
         } catch (shareError) {
@@ -853,9 +866,6 @@ export default function Home() {
 
     setIsSaving(true);
 
-    // Open window immediately to avoid popup blocker (before async operations)
-    const newWindow = window.open('about:blank', '_blank');
-
     try {
       // Import Supabase functions dynamically to avoid SSR issues
       const { saveShelf } = await import('@/lib/supabase');
@@ -884,23 +894,41 @@ export default function Home() {
       // Create X share URL with category-specific text
       const shareTitle = category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。';
       const shareText = encodeURIComponent(`${shareTitle} #THEFIVE`);
-      const xUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodeURIComponent(shelfUrl)}`;
+      const encodedUrl = encodeURIComponent(shelfUrl);
 
-      // Navigate the already-opened window to X
-      if (newWindow) {
-        newWindow.location.href = xUrl;
+      // Detect mobile and try to open X app directly
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Try X app first with intent URL
+        const xAppUrl = `twitter://post?message=${shareText}%20${encodedUrl}`;
+        const webUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;
+
+        // Create a hidden iframe to try the app URL
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        // Try to open app URL
+        const startTime = Date.now();
+        window.location.href = xAppUrl;
+
+        // If still here after 1.5s, app probably not installed, open web
+        setTimeout(() => {
+          if (Date.now() - startTime < 2000) {
+            window.location.href = webUrl;
+          }
+          document.body.removeChild(iframe);
+        }, 1500);
       } else {
-        // Fallback if popup was blocked anyway
-        window.location.href = xUrl;
+        // Desktop: open in new tab
+        const xUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;
+        window.open(xUrl, '_blank');
       }
 
       showToastMessage('本棚を保存しました！Xで共有できます');
     } catch (error) {
       console.error('Share error:', error);
-      // Close the blank window if there was an error
-      if (newWindow) {
-        newWindow.close();
-      }
       alert('保存中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsSaving(false);
@@ -1075,12 +1103,12 @@ export default function Home() {
                   ) : (
                     <>
                       <h2
-                        className="text-xl sm:text-2xl md:text-3xl tracking-wide"
+                        className="text-lg sm:text-xl md:text-2xl tracking-wide"
                         style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
                       >
-                        {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
+                        {category === 'recommend' ? 'Recommended' : 'My Best Five'}
                       </h2>
-                      <p className="text-xs tracking-widest uppercase mt-2" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
+                      <p className="text-[10px] sm:text-xs tracking-widest uppercase mt-1" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
                         {category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}
                       </p>
                     </>
@@ -1519,8 +1547,8 @@ export default function Home() {
             <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.2)' }} />
             <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 28 }}>
               <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: 32, fontWeight: 900, color: 'white', textShadow: '0 2px 15px rgba(0,0,0,0.6)', letterSpacing: '0.05em' }}>My Best Five</h2>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.2em', marginTop: 4 }}>私を形づくる5冊</p>
+                <h2 style={{ fontSize: 32, fontWeight: 900, color: 'white', textShadow: '0 2px 15px rgba(0,0,0,0.6)', letterSpacing: '0.05em' }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.2em', marginTop: 4 }}>{category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}</p>
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
                 {selectedBooks.map((book) => (
@@ -1551,8 +1579,8 @@ export default function Home() {
           >
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, padding: 32 }}>
               <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: 36, letterSpacing: '0.08em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif", fontWeight: 300 }}>My Best Five</h2>
-                <p style={{ fontSize: 11, letterSpacing: '0.25em', marginTop: 6, color: '#888', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>私を形づくる5冊</p>
+                <h2 style={{ fontSize: 36, letterSpacing: '0.08em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif", fontWeight: 300 }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
+                <p style={{ fontSize: 11, letterSpacing: '0.25em', marginTop: 6, color: '#888', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>{category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
                 {selectedBooks.map((book) => (

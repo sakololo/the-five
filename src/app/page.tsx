@@ -1075,7 +1075,7 @@ export default function Home() {
                   ) : (
                     <>
                       <h2
-                        className="text-3xl md:text-4xl tracking-wide"
+                        className="text-xl sm:text-2xl md:text-3xl tracking-wide"
                         style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
                       >
                         {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
@@ -1088,7 +1088,7 @@ export default function Home() {
                 </div>
 
                 {/* Books Area with Drag and Drop */}
-                <div className="relative z-10 flex-1 p-2 md:p-4 flex flex-col items-center justify-center">
+                <div className="relative z-10 flex-1 p-4 md:p-6 pb-6 md:pb-8 flex flex-col items-center justify-center">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}

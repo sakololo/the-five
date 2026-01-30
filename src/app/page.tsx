@@ -853,6 +853,9 @@ export default function Home() {
 
     setIsSaving(true);
 
+    // Open window immediately to avoid popup blocker (before async operations)
+    const newWindow = window.open('about:blank', '_blank');
+
     try {
       // Import Supabase functions dynamically to avoid SSR issues
       const { saveShelf } = await import('@/lib/supabase');
@@ -875,19 +878,29 @@ export default function Home() {
       }
 
       // Generate share URL
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      const shelfUrl = `${baseUrl}/shelf/${shelfId}`;
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const shelfUrl = `${siteUrl}/shelf/${shelfId}`;
 
-      // Create X share URL
-      const shareText = encodeURIComponent('私を形づくる5冊 #THEFIVE #私の5冊');
+      // Create X share URL with category-specific text
+      const shareTitle = category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。';
+      const shareText = encodeURIComponent(`${shareTitle} #THEFIVE`);
       const xUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodeURIComponent(shelfUrl)}`;
 
-      // Open X in new tab
-      window.open(xUrl, '_blank');
+      // Navigate the already-opened window to X
+      if (newWindow) {
+        newWindow.location.href = xUrl;
+      } else {
+        // Fallback if popup was blocked anyway
+        window.location.href = xUrl;
+      }
 
       showToastMessage('本棚を保存しました！Xで共有できます');
     } catch (error) {
       console.error('Share error:', error);
+      // Close the blank window if there was an error
+      if (newWindow) {
+        newWindow.close();
+      }
       alert('保存中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsSaving(false);

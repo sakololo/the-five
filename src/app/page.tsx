@@ -4,6 +4,7 @@
 const IS_AI_ENABLED = false;
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import * as htmlToImage from 'html-to-image';
 import {
   DndContext,
@@ -400,6 +401,11 @@ export default function Home() {
   // Category state for shelf title
   const [category, setCategory] = useState<'identity' | 'recommend'>('identity');
 
+  // API search state
+  const [apiSearchResults, setApiSearchResults] = useState<Book[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   // DnD Kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -541,9 +547,14 @@ export default function Home() {
     window.open(twitterUrl, '_blank');
   };
 
-  // Filter manga
+  // Filter manga - use API results when available, otherwise use mock data
   const filteredManga = (() => {
-    // Step 1: ジャンル・検索語でフィルター
+    // If we have API results, use them
+    if (searchQuery.trim() && apiSearchResults.length > 0) {
+      return apiSearchResults;
+    }
+
+    // Otherwise, filter mock data
     const basicFiltered = MOCK_MANGA_DATA.filter(manga => {
       const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
       const matchesSearch = !searchQuery.trim() ||
@@ -556,6 +567,58 @@ export default function Home() {
     // Step 2: 1巻に集約（同じタイトルの複数巻は1巻のみ表示）
     return consolidateToFirstVolume(basicFiltered);
   })();
+
+  // API search function
+  const performApiSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setApiSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await response.json();
+      const books: Book[] = (data.books || []).map((book: { id?: number; title?: string; author?: string; coverUrl?: string; publisher?: string; volumeNumber?: number | null }, index: number) => ({
+        id: book.id || 1000 + index,
+        title: book.title || '',
+        reading: '',
+        author: book.author || '',
+        genre: '検索結果',
+        totalVolumes: book.volumeNumber || 1,
+        coverColor: 'from-gray-400 to-gray-600',
+        coverUrl: book.coverUrl || '',
+        itemUrl: undefined,
+      }));
+
+      setApiSearchResults(books);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchError('検索に失敗しました');
+      setApiSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        performApiSearch(searchQuery);
+      } else {
+        setApiSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, performApiSearch]);
 
   // Open drawer for volume selection
   const openDrawer = (manga: Book) => {
@@ -834,8 +897,8 @@ export default function Home() {
         try {
           await navigator.share({
             files: [file],
-            title: category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。',
-            text: category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。',
+            title: category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊',
+            text: category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊',
           });
           showToastMessage('共有メニューを開きました！');
         } catch (shareError) {
@@ -892,7 +955,7 @@ export default function Home() {
       const shelfUrl = `${siteUrl}/shelf/${shelfId}`;
 
       // Create X share URL with category-specific text
-      const shareTitle = category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。';
+      const shareTitle = category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊';
       const shareText = encodeURIComponent(`${shareTitle} #THEFIVE`);
       const encodedUrl = encodeURIComponent(shelfUrl);
 
@@ -953,58 +1016,35 @@ export default function Home() {
           <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
             {/* Logo */}
             <div className="text-center">
-              <h1
-                className="text-5xl font-bold tracking-wide"
-                style={{
-                  fontFamily: "'Permanent Marker', cursive",
-                  fontStyle: 'italic',
-                  transform: 'skewX(-8deg)',
-                }}
-              >
-                THE FIVE
-              </h1>
-              <p
-                className="mt-2 text-sm opacity-70"
-                style={{ fontFamily: "'Kaisei Tokumin', serif", letterSpacing: '0.12em' }}
-              >
-                私を形作る、5つの物語。
-              </p>
+              <Link href="/" className="cursor-pointer inline-block">
+                <h1
+                  className="text-5xl font-bold tracking-wide"
+                  style={{
+                    fontFamily: "'Permanent Marker', cursive",
+                    fontStyle: 'italic',
+                    transform: 'skewX(-8deg)',
+                  }}
+                >
+                  THE FIVE
+                </h1>
+              </Link>
             </div>
 
             {/* Description */}
-            <div className="max-w-xl text-center px-4">
+            <div className="max-w-xl text-center px-4 mt-8">
               <p
-                className="text-base leading-loose opacity-85"
-                style={{ fontFamily: "'Kaisei Tokumin', serif", lineHeight: '2' }}
+                className="text-2xl md:text-3xl font-bold leading-relaxed"
+                style={{ fontFamily: "'Kaisei Tokumin', serif", lineHeight: '1.6' }}
               >
-                人生で最も記憶に残っている<br />
-                <span className="font-bold text-lg">5冊</span>を選んでください。
+                あなたの5冊を、教えてください。
               </p>
-              {IS_AI_ENABLED ? (
-                <>
-                  <p
-                    className="text-sm mt-3 opacity-70 leading-relaxed"
-                    style={{ fontFamily: "'Kaisei Tokumin', serif" }}
-                  >
-                    5つの表紙を1枚の美しい画像にまとめるとともに、<br />
-                    AIがあなたの感性を読み解き、特別な<span className="font-semibold">「二つ名」</span>を命名します。
-                  </p>
-                  <p
-                    className="text-xs mt-3 opacity-50"
-                    style={{ fontFamily: "'Kaisei Tokumin', serif" }}
-                  >
-                    ※AIによる二つ名なしの5冊の表紙だけの画像も作れます。
-                  </p>
-                </>
-              ) : (
-                <p
-                  className="text-sm mt-3 opacity-70 leading-relaxed"
-                  style={{ fontFamily: "'Kaisei Tokumin', serif" }}
-                >
-                  5つの表紙を1枚の美しい画像にまとめて、<br />
-                  あなただけの本棚を作りましょう。
-                </p>
-              )}
+              <p
+                className="text-sm mt-4 opacity-70 leading-relaxed"
+                style={{ fontFamily: "'Kaisei Tokumin', serif" }}
+              >
+                人生で最も記憶に残っている本、あるいは今おすすめしたい本を５冊選んで、<br className="hidden sm:inline" />
+                あなただけの本棚を作りましょう。
+              </p>
             </div>
 
             {/* Mode Toggle - テーマ選択 */}
@@ -1035,24 +1075,24 @@ export default function Home() {
             {/* Category Selection - 本棚タイトル選択 */}
             <div className="flex flex-col items-center gap-2 mt-6">
               <p className="text-sm font-medium text-gray-400">本棚のタイトル</p>
-              <div className="glass-card flex rounded-full p-1.5 gap-1">
+              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-xs">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${category === 'identity'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${category === 'identity'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                  あなたを、5冊で。
+                  私を形作る5冊
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${category === 'recommend'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${category === 'recommend'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                  おすすめの5冊
+                  今読んでほしい5冊
                 </button>
               </div>
             </div>
@@ -1067,7 +1107,7 @@ export default function Home() {
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-gray-800 mb-1">プレビュー</h2>
               <p className="text-sm text-gray-500">完成イメージをリアルタイムで確認</p>
-              <p className="text-xs text-gray-400 mt-1 md:hidden">※ 長押しで順番を変更できます</p>
+              <p className="text-xs text-gray-400 mt-1 md:hidden">※ ドラッグで順番を変更できます</p>
             </div>
 
             <div className="flex justify-center w-full px-2 md:px-0">
@@ -1097,7 +1137,7 @@ export default function Home() {
                         {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
                       </h2>
                       <p className="text-white/60 text-xs tracking-widest uppercase mt-1" style={{ letterSpacing: '0.1em' }}>
-                        {category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}
+                        {category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}
                       </p>
                     </>
                   ) : (
@@ -1109,7 +1149,7 @@ export default function Home() {
                         {category === 'recommend' ? 'Recommended' : 'My Best Five'}
                       </h2>
                       <p className="text-[10px] sm:text-xs tracking-widest uppercase mt-1" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
-                        {category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}
+                        {category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}
                       </p>
                     </>
                   )}
@@ -1267,6 +1307,13 @@ export default function Home() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        // 検索クエリが既にリアクティブにフィルタリングされているので、Enterで検索セクションにスクロール
+                        document.getElementById('search-results')?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
                     placeholder="タイトルや作者名を入力（例：ワンピ、スラダン）"
                     className="flex-1 px-5 py-4 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 text-base"
                   />
@@ -1316,14 +1363,19 @@ export default function Home() {
           </section>
 
           {/* Search Results Section */}
-          <section className="mb-8">
+          <section id="search-results" className="mb-8">
             <div className="text-center mb-3">
               <h2 className="text-base font-bold text-gray-800 mb-0.5">検索結果</h2>
               <p className="text-xs text-gray-500">1巻のサムネイルをタップして他の巻を選択</p>
             </div>
 
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-              {filteredManga.length === 0 ? (
+              {isSearching ? (
+                <div className="col-span-full text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                  <p className="text-gray-500 mt-2">検索中...</p>
+                </div>
+              ) : filteredManga.length === 0 ? (
                 <div className="col-span-full text-center py-12">
                   <p className="text-gray-400">検索結果がありません</p>
                 </div>
@@ -1359,12 +1411,12 @@ export default function Home() {
                   );
                 })
               )}
-            </div>
-          </section>
-        </main>
+            </div >
+          </section >
+        </main >
 
         {/* Footer */}
-        <footer className="py-8 mt-12">
+        < footer className="py-8 mt-12" >
           <p className="text-center text-sm text-gray-500 font-medium">THE FIVE © 2026</p>
           <p className="text-center text-xs text-gray-400 mt-1">
             {IS_AI_ENABLED ? '最高の5冊を選び、AIに鑑定してもらおう' : '最高の5冊を選んで、あなただけの本棚を作ろう'}
@@ -1376,7 +1428,7 @@ export default function Home() {
           >
             免責事項・著作権について
           </button>
-        </footer>
+        </footer >
       </div >
 
       {/* Volume Selector Drawer */}
@@ -1447,153 +1499,157 @@ export default function Home() {
       </div>
 
       {/* Hidden Share Cards for html-to-image capture - MUST be outside modal for reliable rendering */}
-      {appraisalResult && (
-        <>
-          <div
-            id="share-card-full"
-            style={{
-              position: 'fixed',
-              left: '-9999px',
-              top: 0,
-              width: 800,
-              height: 450,
-              visibility: 'hidden',
-              zIndex: -1,
-            }}
-          >
+      {
+        appraisalResult && (
+          <>
             <div
+              id="share-card-full"
               style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                position: 'fixed',
+                left: '-9999px',
+                top: 0,
+                width: 800,
+                height: 450,
+                visibility: 'hidden',
+                zIndex: -1,
               }}
-            />
-            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.25)' }} />
-            <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 24 }}>
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 8 }}>YOUR SOUL NAME</p>
-                <h2 style={{ fontSize: 28, fontWeight: 900, color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{appraisalResult.soulTitle}</h2>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
-                {selectedBooks.map((book) => (
-                  <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)' }}>
-                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>2026.01</p>
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.25)' }} />
+              <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 24 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 8 }}>YOUR SOUL NAME</p>
+                  <h2 style={{ fontSize: 28, fontWeight: 900, color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{appraisalResult.soulTitle}</h2>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
+                  {selectedBooks.map((book) => (
+                    <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>2026.01</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            id="share-card-simple"
-            style={{
-              position: 'fixed',
-              left: '-9999px',
-              top: 0,
-              width: 800,
-              height: 450,
-              backgroundColor: '#FAF9F6',
-              visibility: 'hidden',
-              zIndex: -1,
-            }}
-          >
-            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: 24 }}>
-              <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '0.05em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif" }}>私の５冊</h2>
-                <p style={{ fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', marginTop: 8, color: '#666', fontWeight: 500 }}>THE FIVE</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
-                {selectedBooks.map((book) => (
-                  <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
-                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                  </div>
-                ))}
+            <div
+              id="share-card-simple"
+              style={{
+                position: 'fixed',
+                left: '-9999px',
+                top: 0,
+                width: 800,
+                height: 450,
+                backgroundColor: '#FAF9F6',
+                visibility: 'hidden',
+                zIndex: -1,
+              }}
+            >
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: 24 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <h2 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '0.05em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif" }}>私の５冊</h2>
+                  <p style={{ fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', marginTop: 8, color: '#666', fontWeight: 500 }}>THE FIVE</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
+                  {selectedBooks.map((book) => (
+                    <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* Hidden Share Cards for direct save (AI disabled mode) */}
-      {selectedBooks.length === 5 && (
-        <>
-          {/* Magazine style - 本棚背景 */}
-          <div
-            id="share-card-full-direct"
-            style={{
-              position: 'fixed',
-              left: '-9999px',
-              top: 0,
-              width: 800,
-              height: 450,
-              visibility: 'hidden',
-              zIndex: -1,
-            }}
-          >
+      {
+        selectedBooks.length === 5 && (
+          <>
+            {/* Magazine style - 本棚背景 */}
             <div
+              id="share-card-full-direct"
               style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                position: 'fixed',
+                left: '-9999px',
+                top: 0,
+                width: 800,
+                height: 450,
+                visibility: 'hidden',
+                zIndex: -1,
               }}
-            />
-            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.2)' }} />
-            <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 28 }}>
-              <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: 32, fontWeight: 900, color: 'white', textShadow: '0 2px 15px rgba(0,0,0,0.6)', letterSpacing: '0.05em' }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.2em', marginTop: 4 }}>{category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}</p>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
-                {selectedBooks.map((book) => (
-                  <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)' }}>
-                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 500 }}>2026.01.30</p>
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+              <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 28 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <h2 style={{ fontSize: 32, fontWeight: 900, color: 'white', textShadow: '0 2px 15px rgba(0,0,0,0.6)', letterSpacing: '0.05em' }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.2em', marginTop: 4 }}>{category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}</p>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
+                  {selectedBooks.map((book) => (
+                    <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 500 }}>2026.01.30</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Minimal style - 白背景 */}
-          <div
-            id="share-card-simple-direct"
-            style={{
-              position: 'fixed',
-              left: '-9999px',
-              top: 0,
-              width: 800,
-              height: 450,
-              backgroundColor: '#FAF9F6',
-              visibility: 'hidden',
-              zIndex: -1,
-            }}
-          >
-            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, padding: 32 }}>
-              <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: 36, letterSpacing: '0.08em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif", fontWeight: 300 }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
-                <p style={{ fontSize: 11, letterSpacing: '0.25em', marginTop: 6, color: '#888', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>{category === 'recommend' ? '今おすすめしたい、5冊。' : 'あなたを、5冊で。'}</p>
+            {/* Minimal style - 白背景 */}
+            <div
+              id="share-card-simple-direct"
+              style={{
+                position: 'fixed',
+                left: '-9999px',
+                top: 0,
+                width: 800,
+                height: 450,
+                backgroundColor: '#FAF9F6',
+                visibility: 'hidden',
+                zIndex: -1,
+              }}
+            >
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, padding: 32 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <h2 style={{ fontSize: 36, letterSpacing: '0.08em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif", fontWeight: 300 }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
+                  <p style={{ fontSize: 11, letterSpacing: '0.25em', marginTop: 6, color: '#888', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>{category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
+                  {selectedBooks.map((book) => (
+                    <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 10, letterSpacing: '0.15em', color: '#AAA', marginTop: 8 }}>2026.01.30</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
-                {selectedBooks.map((book) => (
-                  <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}>
-                    <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                  </div>
-                ))}
-              </div>
-              <p style={{ fontSize: 10, letterSpacing: '0.15em', color: '#AAA', marginTop: 8 }}>2026.01.30</p>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* AI Appraisal Modal */}
       <div className={`modal fixed inset-0 z-[60] flex items-center justify-center ${showAppraisalModal ? 'open' : ''}`}>
@@ -1723,70 +1779,72 @@ export default function Home() {
       </div>
 
       {/* Disclaimer Modal */}
-      {showDisclaimerModal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowDisclaimerModal(false)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
-            <button
+      {
+        showDisclaimerModal && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50"
               onClick={() => setShowDisclaimerModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
-            >
-              ✕
-            </button>
-
-            <div style={{ fontFamily: "'Kaisei Tokumin', serif" }}>
-              <h2 className="text-lg font-bold text-gray-800 mb-4">著作権および画像利用について</h2>
-
-              <div className="text-sm text-gray-600 leading-relaxed space-y-4">
-                <p>
-                  当サイト（THE FIVE）は、個人のマンガファンによる非営利のファン活動として運営されています。
-                </p>
-
-                <p>
-                  サイト内で表示される書影（表紙画像）および作品情報は、<strong>「楽天ブックス書籍検索API」</strong>等の公式APIを通じて取得したデータを利用しており、その著作権は各著者・出版社等、正当な権利者に帰属します。
-                </p>
-
-                <p>
-                  当サイトは各作品の販売促進を応援するため、公式販売ページへのリンクを提供しています。
-                </p>
-
-                <p>
-                  当サイトは、著作権の侵害を目的としたものではありません。提供される情報の正確性には細心の注意を払っておりますが、万一、権利者様からの削除依頼や掲載内容の修正依頼があった場合は、事実確認の上、速やかに対応させていただきます。
-                </p>
-
-                <p>
-                  お問い合わせは、
-                  <a
-                    href="https://twitter.com/messages/compose?recipient_id=antigravity_dev"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    X（旧Twitter）のDM
-                  </a>
-                  までご連絡をお願いいたします。
-                </p>
-
-                <h3 className="text-md font-bold text-gray-800 pt-4">免責事項</h3>
-
-                <p>
-                  当サイトの利用（画像の保存やシェア等を含む）によって生じた損害やトラブルについて、運営者は一切の責任を負いかねます。あらかじめご了承ください。
-                </p>
-              </div>
-
+            />
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
               <button
                 onClick={() => setShowDisclaimerModal(false)}
-                className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
               >
-                閉じる
+                ✕
               </button>
+
+              <div style={{ fontFamily: "'Kaisei Tokumin', serif" }}>
+                <h2 className="text-lg font-bold text-gray-800 mb-4">著作権および画像利用について</h2>
+
+                <div className="text-sm text-gray-600 leading-relaxed space-y-4">
+                  <p>
+                    当サイト（THE FIVE）は、個人のマンガファンによる非営利のファン活動として運営されています。
+                  </p>
+
+                  <p>
+                    サイト内で表示される書影（表紙画像）および作品情報は、<strong>「楽天ブックス書籍検索API」</strong>等の公式APIを通じて取得したデータを利用しており、その著作権は各著者・出版社等、正当な権利者に帰属します。
+                  </p>
+
+                  <p>
+                    当サイトは各作品の販売促進を応援するため、公式販売ページへのリンクを提供しています。
+                  </p>
+
+                  <p>
+                    当サイトは、著作権の侵害を目的としたものではありません。提供される情報の正確性には細心の注意を払っておりますが、万一、権利者様からの削除依頼や掲載内容の修正依頼があった場合は、事実確認の上、速やかに対応させていただきます。
+                  </p>
+
+                  <p>
+                    お問い合わせは、
+                    <a
+                      href="https://twitter.com/messages/compose?recipient_id=antigravity_dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      X（旧Twitter）のDM
+                    </a>
+                    までご連絡をお願いいたします。
+                  </p>
+
+                  <h3 className="text-md font-bold text-gray-800 pt-4">免責事項</h3>
+
+                  <p>
+                    当サイトの利用（画像の保存やシェア等を含む）によって生じた損害やトラブルについて、運営者は一切の責任を負いかねます。あらかじめご了承ください。
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowDisclaimerModal(false)}
+                  className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition"
+                >
+                  閉じる
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }

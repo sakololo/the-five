@@ -9,8 +9,8 @@ interface ShelfDisplayProps {
 export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
     const isMagazine = shelf.theme === 'magazine';
     const categoryTitle = shelf.category === 'recommend'
-        ? '今おすすめしたい、5冊。'
-        : 'あなたを、5冊で。';
+        ? '今読んでほしい、5冊。'
+        : '私を形作る、5冊。';
 
     return (
         <div

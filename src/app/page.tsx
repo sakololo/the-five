@@ -134,22 +134,11 @@ interface AppraisalResult {
 // 巻数検知ユーティリティ
 // ========================================
 
-// 特別版を示すキーワード（これらを含む場合は別タイトルとして扱う）
-const SPECIAL_EDITION_KEYWORDS = [
-  '完全版',
-  '愛蔵版',
-  '新装版',
-  '文庫版',
-  '豪華版',
-  'ワイド版',
-  'デラックス版',
-];
-
 // 巻数を検出する正規表現パターン
 const VOLUME_PATTERNS = [
   /第(\d+)巻/,           // 第1巻
   /(\d+)巻/,             // 1巻
-  /\((\d+)\)/,           // (1) 半角括弧
+  /\((\d+)\)/,           // (1)
   /（(\d+)）/,           // （1） 全角括弧
   /vol\.?\s*(\d+)/i,     // vol.1, Vol 1
   /\s(\d+)$/,            // タイトル末尾の数字
@@ -166,17 +155,11 @@ function extractVolumeNumber(title: string): number | null {
 
 // ベースタイトル（巻数を除外した部分）を取得
 function getBaseTitle(title: string): string {
-  let baseTitle = title;
-  // 巻数パターンを除去
+  let result = title;
   for (const pattern of VOLUME_PATTERNS) {
-    baseTitle = baseTitle.replace(pattern, '').trim();
+    result = result.replace(pattern, '').trim();
   }
-  return baseTitle;
-}
-
-// タイトルが特別版かどうかをチェック
-function isSpecialEdition(title: string): boolean {
-  return SPECIAL_EDITION_KEYWORDS.some(keyword => title.includes(keyword));
+  return result;
 }
 
 // 検索結果を1巻に集約（同じベースタイトルの中で最も若い巻数のみを残す）
@@ -184,21 +167,16 @@ function consolidateToFirstVolume(manga: Book[]): Book[] {
   const titleMap = new Map<string, Book>();
 
   for (const book of manga) {
-    const baseTitle = getBaseTitle(book.title);
+    const bookBaseTitle = getBaseTitle(book.title);
     const volumeNum = extractVolumeNumber(book.title) ?? 1;
-    const isSpecial = isSpecialEdition(book.title);
 
-    // 特別版の場合は、ベースタイトルに特別版情報を含めて別タイトルとして扱う
-    const mapKey = isSpecial ? book.title : baseTitle;
-
-    const existing = titleMap.get(mapKey);
+    const existing = titleMap.get(bookBaseTitle);
     if (!existing) {
-      titleMap.set(mapKey, book);
+      titleMap.set(bookBaseTitle, book);
     } else {
       const existingVolume = extractVolumeNumber(existing.title) ?? 1;
-      // 通常版同士の場合のみ、最小巻数を優先
-      if (!isSpecial && volumeNum < existingVolume) {
-        titleMap.set(mapKey, book);
+      if (volumeNum < existingVolume) {
+        titleMap.set(bookBaseTitle, book);
       }
     }
   }

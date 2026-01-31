@@ -167,6 +167,8 @@ async function fetchBooks(
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Rakuten API error: ${response.status} ${response.statusText}`, errorText);
     throw new Error(`Rakuten API error: ${response.status}`);
   }
 
@@ -267,6 +269,8 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('q') || '';
   const genre = searchParams.get('genre') || '';
 
+  console.log(`Search API Request: query="${query}", genre="${genre}", ip="${ip}"`);
+
   if (!query && !genre) {
     return NextResponse.json(
       { error: 'Search query or genre is required' },
@@ -297,8 +301,8 @@ export async function GET(request: NextRequest) {
     // Log if no results found
     if (books.length === 0 && query.trim().length > 0) {
       const userAgent = request.headers.get('user-agent') || 'unknown';
-      // Non-blocking log
-      logFailedSearch(query, ip, userAgent).catch(e => console.error('Log error', e));
+      // Log failed search (await to ensure it survives serverless freeze)
+      await logFailedSearch(query, ip, userAgent);
     }
 
     // Sort: images first
@@ -311,7 +315,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Search API error:', error);
+    console.error('Search API error details:', error);
     return NextResponse.json({
       books: [],
       warning: 'Search failed, returning empty results'

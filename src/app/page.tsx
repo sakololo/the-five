@@ -956,8 +956,8 @@ export default function Home() {
               <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
                 <button
                   onClick={() => setMode('gallery')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all text-center whitespace-nowrap ${mode === 'gallery'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'gallery'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -965,8 +965,8 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setMode('magazine')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all text-center whitespace-nowrap ${mode === 'magazine'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'magazine'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -981,8 +981,8 @@ export default function Home() {
               <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${category === 'identity'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -990,8 +990,8 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
+                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${category === 'recommend'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >

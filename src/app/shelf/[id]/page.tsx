@@ -11,7 +11,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { id } = await params;
     const shelf = await getShelf(id);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://the-five.vercel.app';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://the-five-beige.vercel.app';
+    const pageUrl = `${siteUrl}/shelf/${id}`;
 
     if (!shelf) {
         return {
@@ -28,17 +29,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
         title: categoryTitle,
         description: `${bookTitles}`,
+        metadataBase: new URL(siteUrl),
         openGraph: {
             title: categoryTitle,
             description: `${bookTitles}`,
+            url: pageUrl,
+            siteName: 'THE FIVE',
             type: 'website',
-            images: [ogImageUrl],
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: categoryTitle,
+                }
+            ],
         },
         twitter: {
             card: 'summary_large_image',
+            site: '@',
             title: categoryTitle,
             description: `${bookTitles}`,
-            images: [ogImageUrl],
+            images: [{
+                url: ogImageUrl,
+                alt: categoryTitle,
+            }],
         },
     };
 }

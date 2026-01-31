@@ -19,7 +19,7 @@ export interface ShelfData {
 }
 
 export interface BookData {
-  id: number;
+  id: string;
   title: string;
   author: string;
   coverUrl: string;

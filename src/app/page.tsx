@@ -109,7 +109,7 @@ const MANGA_ALIASES: Record<string, string> = {
 
 // Types
 interface Book {
-  id: number;
+  id: string;
   title: string;
   reading: string; // ひらがな読み（検索用）
   author: string;
@@ -146,6 +146,7 @@ const VOLUME_PATTERNS = [
 
 // タイトルから巻数を抽出
 function extractVolumeNumber(title: string): number | null {
+  if (typeof title !== 'string') return null;
   for (const pattern of VOLUME_PATTERNS) {
     const match = title.match(pattern);
     if (match) return parseInt(match[1], 10);
@@ -155,6 +156,7 @@ function extractVolumeNumber(title: string): number | null {
 
 // ベースタイトル（巻数を除外した部分）を取得
 function getBaseTitle(title: string): string {
+  if (typeof title !== 'string') return '';
   let result = title;
   for (const pattern of VOLUME_PATTERNS) {
     result = result.replace(pattern, '').trim();
@@ -197,35 +199,35 @@ function getAllVolumesForTitle(baseTitle: string, allManga: Book[]): Book[] {
 
 // Mock manga data (same as mockup)
 const MOCK_MANGA_DATA: Book[] = [
-  { id: 1, title: "ワンピース", reading: "わんぴーす", author: "尾田栄一郎", genre: "少年", totalVolumes: 107, coverColor: "from-red-400 to-red-600", coverUrl: "https://placehold.co/150x220/ef4444/ffffff?text=ONE+PIECE" },
-  { id: 2, title: "鬼滅の刃", reading: "きめつのやいば", author: "吾峠呼世晴", genre: "少年", totalVolumes: 23, coverColor: "from-teal-400 to-teal-600", coverUrl: "https://placehold.co/150x220/14b8a6/ffffff?text=鬼滅の刃" },
-  { id: 3, title: "呪術廻戦", reading: "じゅじゅつかいせん", author: "芥見下々", genre: "少年", totalVolumes: 25, coverColor: "from-purple-400 to-purple-600", coverUrl: "https://placehold.co/150x220/a855f7/ffffff?text=呪術廻戦" },
-  { id: 4, title: "SPY×FAMILY", reading: "すぱいふぁみりー", author: "遠藤達哉", genre: "少年", totalVolumes: 13, coverColor: "from-pink-400 to-rose-500", coverUrl: "https://placehold.co/150x220/ec4899/ffffff?text=SPY×FAMILY" },
-  { id: 5, title: "進撃の巨人", reading: "しんげきのきょじん", author: "諫山創", genre: "少年", totalVolumes: 34, coverColor: "from-gray-600 to-gray-800", coverUrl: "https://placehold.co/150x220/4b5563/ffffff?text=進撃の巨人" },
-  { id: 6, title: "チェンソーマン", reading: "ちぇんそーまん", author: "藤本タツキ", genre: "少年", totalVolumes: 16, coverColor: "from-orange-500 to-red-600", coverUrl: "https://placehold.co/150x220/f97316/ffffff?text=チェンソーマン" },
-  { id: 7, title: "NARUTO", reading: "なると", author: "岸本斉史", genre: "少年", totalVolumes: 72, coverColor: "from-orange-400 to-orange-600", coverUrl: "https://placehold.co/150x220/fb923c/ffffff?text=NARUTO" },
-  { id: 8, title: "BLEACH", reading: "ぶりーち", author: "久保帯人", genre: "少年", totalVolumes: 74, coverColor: "from-blue-500 to-indigo-600", coverUrl: "https://placehold.co/150x220/3b82f6/ffffff?text=BLEACH" },
-  { id: 9, title: "ハイキュー!!", reading: "はいきゅー", author: "古舘春一", genre: "少年", totalVolumes: 45, coverColor: "from-orange-400 to-amber-500", coverUrl: "https://placehold.co/150x220/f59e0b/ffffff?text=ハイキュー!!" },
-  { id: 10, title: "僕のヒーローアカデミア", reading: "ぼくのひーろーあかでみあ", author: "堀越耕平", genre: "少年", totalVolumes: 39, coverColor: "from-green-400 to-emerald-600", coverUrl: "https://placehold.co/150x220/22c55e/ffffff?text=ヒロアカ" },
-  { id: 11, title: "君に届け", reading: "きみにとどけ", author: "椎名軽穂", genre: "少女", totalVolumes: 30, coverColor: "from-pink-300 to-pink-500", coverUrl: "https://placehold.co/150x220/f472b6/ffffff?text=君に届け" },
-  { id: 12, title: "フルーツバスケット", reading: "ふるーつばすけっと", author: "高屋奈月", genre: "少女", totalVolumes: 23, coverColor: "from-violet-300 to-purple-500", coverUrl: "https://placehold.co/150x220/8b5cf6/ffffff?text=フルバ" },
-  { id: 13, title: "NANA", reading: "なな", author: "矢沢あい", genre: "少女", totalVolumes: 21, coverColor: "from-rose-400 to-red-500", coverUrl: "https://placehold.co/150x220/f43f5e/ffffff?text=NANA" },
-  { id: 14, title: "ベルセルク", reading: "べるせるく", author: "三浦建太郎", genre: "青年", totalVolumes: 41, coverColor: "from-slate-700 to-slate-900", coverUrl: "https://placehold.co/150x220/334155/ffffff?text=ベルセルク" },
-  { id: 15, title: "GANTZ", reading: "がんつ", author: "奥浩哉", genre: "青年", totalVolumes: 37, coverColor: "from-gray-800 to-black", coverUrl: "https://placehold.co/150x220/1f2937/ffffff?text=GANTZ" },
-  { id: 16, title: "AKIRA", reading: "あきら", author: "大友克洋", genre: "SF", totalVolumes: 6, coverColor: "from-red-600 to-red-800", coverUrl: "https://placehold.co/150x220/dc2626/ffffff?text=AKIRA" },
-  { id: 17, title: "攻殻機動隊", reading: "こうかくきどうたい", author: "士郎正宗", genre: "SF", totalVolumes: 3, coverColor: "from-cyan-500 to-blue-600", coverUrl: "https://placehold.co/150x220/06b6d4/ffffff?text=攻殻機動隊" },
-  { id: 18, title: "葬送のフリーレン", reading: "そうそうのふりーれん", author: "山田鐘人", genre: "ファンタジー", totalVolumes: 12, coverColor: "from-emerald-400 to-teal-500", coverUrl: "https://placehold.co/150x220/2dd4bf/ffffff?text=フリーレン" },
-  { id: 19, title: "薬屋のひとりごと", reading: "くすりやのひとりごと", author: "日向夏", genre: "ファンタジー", totalVolumes: 11, coverColor: "from-amber-400 to-orange-500", coverUrl: "https://placehold.co/150x220/fbbf24/ffffff?text=薬屋" },
-  { id: 20, title: "ホリミヤ", reading: "ほりみや", author: "萩原ダイスケ", genre: "恋愛", totalVolumes: 16, coverColor: "from-sky-400 to-blue-500", coverUrl: "https://placehold.co/150x220/38bdf8/ffffff?text=ホリミヤ" },
+  { id: "1", title: "ワンピース", reading: "わんぴーす", author: "尾田栄一郎", genre: "少年", totalVolumes: 107, coverColor: "from-red-400 to-red-600", coverUrl: "https://placehold.co/150x220/ef4444/ffffff?text=ONE+PIECE" },
+  { id: "2", title: "鬼滅の刃", reading: "きめつのやいば", author: "吾峠呼世晴", genre: "少年", totalVolumes: 23, coverColor: "from-teal-400 to-teal-600", coverUrl: "https://placehold.co/150x220/14b8a6/ffffff?text=鬼滅の刃" },
+  { id: "3", title: "呪術廻戦", reading: "じゅじゅつかいせん", author: "芥見下々", genre: "少年", totalVolumes: 25, coverColor: "from-purple-400 to-purple-600", coverUrl: "https://placehold.co/150x220/a855f7/ffffff?text=呪術廻戦" },
+  { id: "4", title: "SPY×FAMILY", reading: "すぱいふぁみりー", author: "遠藤達哉", genre: "少年", totalVolumes: 13, coverColor: "from-pink-400 to-rose-500", coverUrl: "https://placehold.co/150x220/ec4899/ffffff?text=SPY×FAMILY" },
+  { id: "5", title: "進撃の巨人", reading: "しんげきのきょじん", author: "諫山創", genre: "少年", totalVolumes: 34, coverColor: "from-gray-600 to-gray-800", coverUrl: "https://placehold.co/150x220/4b5563/ffffff?text=進撃の巨人" },
+  { id: "6", title: "チェンソーマン", reading: "ちぇんそーまん", author: "藤本タツキ", genre: "少年", totalVolumes: 16, coverColor: "from-orange-500 to-red-600", coverUrl: "https://placehold.co/150x220/f97316/ffffff?text=チェンソーマン" },
+  { id: "7", title: "NARUTO", reading: "なると", author: "岸本斉史", genre: "少年", totalVolumes: 72, coverColor: "from-orange-400 to-orange-600", coverUrl: "https://placehold.co/150x220/fb923c/ffffff?text=NARUTO" },
+  { id: "8", title: "BLEACH", reading: "ぶりーち", author: "久保帯人", genre: "少年", totalVolumes: 74, coverColor: "from-blue-500 to-indigo-600", coverUrl: "https://placehold.co/150x220/3b82f6/ffffff?text=BLEACH" },
+  { id: "9", title: "ハイキュー!!", reading: "はいきゅー", author: "古舘春一", genre: "少年", totalVolumes: 45, coverColor: "from-orange-400 to-amber-500", coverUrl: "https://placehold.co/150x220/f59e0b/ffffff?text=ハイキュー!!" },
+  { id: "10", title: "僕のヒーローアカデミア", reading: "ぼくのひーろーあかでみあ", author: "堀越耕平", genre: "少年", totalVolumes: 39, coverColor: "from-green-400 to-emerald-600", coverUrl: "https://placehold.co/150x220/22c55e/ffffff?text=ヒロアカ" },
+  { id: "11", title: "君に届け", reading: "きみにとどけ", author: "椎名軽穂", genre: "少女", totalVolumes: 30, coverColor: "from-pink-300 to-pink-500", coverUrl: "https://placehold.co/150x220/f472b6/ffffff?text=君に届け" },
+  { id: "12", title: "フルーツバスケット", reading: "ふるーつばすけっと", author: "高屋奈月", genre: "少女", totalVolumes: 23, coverColor: "from-violet-300 to-purple-500", coverUrl: "https://placehold.co/150x220/8b5cf6/ffffff?text=フルバ" },
+  { id: "13", title: "NANA", reading: "なな", author: "矢沢あい", genre: "少女", totalVolumes: 21, coverColor: "from-rose-400 to-red-500", coverUrl: "https://placehold.co/150x220/f43f5e/ffffff?text=NANA" },
+  { id: "14", title: "ベルセルク", reading: "べるせるく", author: "三浦建太郎", genre: "青年", totalVolumes: 41, coverColor: "from-slate-700 to-slate-900", coverUrl: "https://placehold.co/150x220/334155/ffffff?text=ベルセルク" },
+  { id: "15", title: "GANTZ", reading: "がんつ", author: "奥浩哉", genre: "青年", totalVolumes: 37, coverColor: "from-gray-800 to-black", coverUrl: "https://placehold.co/150x220/1f2937/ffffff?text=GANTZ" },
+  { id: "16", title: "AKIRA", reading: "あきら", author: "大友克洋", genre: "SF", totalVolumes: 6, coverColor: "from-red-600 to-red-800", coverUrl: "https://placehold.co/150x220/dc2626/ffffff?text=AKIRA" },
+  { id: "17", title: "攻殻機動隊", reading: "こうかくきどうたい", author: "士郎正宗", genre: "SF", totalVolumes: 3, coverColor: "from-cyan-500 to-blue-600", coverUrl: "https://placehold.co/150x220/06b6d4/ffffff?text=攻殻機動隊" },
+  { id: "18", title: "葬送のフリーレン", reading: "そうそうのふりーれん", author: "山田鐘人", genre: "ファンタジー", totalVolumes: 12, coverColor: "from-emerald-400 to-teal-500", coverUrl: "https://placehold.co/150x220/2dd4bf/ffffff?text=フリーレン" },
+  { id: "19", title: "薬屋のひとりごと", reading: "くすりやのひとりごと", author: "日向夏", genre: "ファンタジー", totalVolumes: 11, coverColor: "from-amber-400 to-orange-500", coverUrl: "https://placehold.co/150x220/fbbf24/ffffff?text=薬屋" },
+  { id: "20", title: "ホリミヤ", reading: "ほりみや", author: "萩原ダイスケ", genre: "恋愛", totalVolumes: 16, coverColor: "from-sky-400 to-blue-500", coverUrl: "https://placehold.co/150x220/38bdf8/ffffff?text=ホリミヤ" },
   // テスト用: 複数巻データ（1巻集約機能の動作確認用）
-  { id: 21, title: "ハヤテのごとく！ 1巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+1" },
-  { id: 22, title: "ハヤテのごとく！ 2巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+2" },
-  { id: 23, title: "ハヤテのごとく！ 3巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+3" },
-  { id: 24, title: "ハヤテのごとく！ 4巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+4" },
-  { id: 25, title: "ハヤテのごとく！ 5巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+5" },
-  { id: 26, title: "神のみぞ知るセカイ 第1巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+1" },
-  { id: 27, title: "神のみぞ知るセカイ 第2巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+2" },
-  { id: 28, title: "神のみぞ知るセカイ 第3巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+3" },
+  { id: "21", title: "ハヤテのごとく！ 1巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+1" },
+  { id: "22", title: "ハヤテのごとく！ 2巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+2" },
+  { id: "23", title: "ハヤテのごとく！ 3巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+3" },
+  { id: "24", title: "ハヤテのごとく！ 4巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+4" },
+  { id: "25", title: "ハヤテのごとく！ 5巻", reading: "はやてのごとく", author: "畑健二郎", genre: "少年", totalVolumes: 52, coverColor: "from-lime-400 to-green-500", coverUrl: "https://placehold.co/150x220/84cc16/ffffff?text=ハヤテ+5" },
+  { id: "26", title: "神のみぞ知るセカイ 第1巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+1" },
+  { id: "27", title: "神のみぞ知るセカイ 第2巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+2" },
+  { id: "28", title: "神のみぞ知るセカイ 第3巻", reading: "かみのみぞしるせかい", author: "若木民喜", genre: "少年", totalVolumes: 26, coverColor: "from-indigo-400 to-purple-500", coverUrl: "https://placehold.co/150x220/6366f1/ffffff?text=神のみ+3" },
 ];
 
 const GENRES = ['all', '少年', '少女', '青年', 'SF', 'ファンタジー', '恋愛'];
@@ -586,8 +588,8 @@ export default function Home() {
       }
 
       const data = await response.json();
-      const books: Book[] = (data.books || []).map((book: { id?: number; title?: string; author?: string; coverUrl?: string; publisher?: string; volumeNumber?: number | null }, index: number) => ({
-        id: book.id || 1000 + index,
+      const books: Book[] = (data.books || []).map((book: { id?: string | number; title?: string; author?: string; coverUrl?: string; publisher?: string; volumeNumber?: number | null }, index: number) => ({
+        id: book.id ? String(book.id) : String(1000 + index),
         title: book.title || '',
         reading: '',
         author: book.author || '',
@@ -1218,7 +1220,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center w-full px-2 md:px-0">
-              <div className="relative w-full max-w-4xl aspect-video md:aspect-auto md:h-[500px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 ${mode === 'magazine' ? 'border-white/20' : 'border-gray-200'} bg-white">
+              <div className={`relative w-full max-w-4xl aspect-video md:aspect-auto md:h-[500px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 ${mode === 'magazine' ? 'border-white/20' : 'border-gray-200'} bg-white`}>
                 {/* Background - matches share card */}
                 {mode === 'magazine' ? (
                   <>

@@ -189,7 +189,7 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
     const coverUrl = (book.largeImageUrl || book.mediumImageUrl || book.smallImageUrl || '') as string;
 
     books.push({
-      id: books.length + 1,
+      id: String(books.length + 1),
       title: title,
       author: book.author || '',
       publisher: book.publisherName || '',
@@ -286,6 +286,7 @@ export async function GET(request: NextRequest) {
 }
 
 function extractVolumeNumber(title: string): number | null {
+  if (typeof title !== 'string') return null;
   // Try multiple patterns for volume number extraction
 
   // Pattern 1: 括弧内の数字（全角・半角） e.g., "タイトル(1)" or "タイトル（1）"

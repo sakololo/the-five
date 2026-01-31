@@ -1,6 +1,7 @@
 'use client';
 
 import { ShelfData } from '@/lib/supabase';
+import ClientDate from './ClientDate';
 
 interface ShelfDisplayProps {
     shelf: ShelfData;
@@ -68,11 +69,7 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
 
                 {/* Date - Small and subtle */}
                 <div className={`absolute bottom-3 right-4 ${isMagazine ? 'text-white/40' : 'text-gray-300'} text-xs`}>
-                    {new Date(shelf.created_at || Date.now()).toLocaleDateString('ja-JP', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                    }).replace(/\//g, '.')}
+                    <ClientDate date={shelf.created_at} />
                 </div>
             </div>
         </div>

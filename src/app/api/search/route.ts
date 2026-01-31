@@ -245,12 +245,13 @@ export async function GET(request: NextRequest) {
   }
 
   const appId = process.env.RAKUTEN_APP_ID;
+  // If no App ID, fallback immediately (or handle gracefully)
+  // For now we try to proceed, but if it's missing or invalid, we catch the error below.
   if (!appId) {
-    console.error('RAKUTEN_APP_ID is not set');
-    return NextResponse.json(
-      { error: 'Server configuration error' },
-      { status: 500 }
-    );
+    console.warn('RAKUTEN_APP_ID is not set. Using local fallback.');
+    // Return empty or mock? Let's return empty with a warning flag if possible,
+    // or just empty array so it doesn't crash.
+    return NextResponse.json({ books: [], warning: 'No API Key' });
   }
 
   try {
@@ -278,10 +279,11 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Search API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to search books. Please try again.' },
-      { status: 503 }
-    );
+    // FALLBACK: Return empty list instead of 500 to prevent UI crash
+    return NextResponse.json({
+      books: [],
+      warning: 'Search failed, returning empty results'
+    });
   }
 }
 

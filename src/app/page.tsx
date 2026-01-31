@@ -544,6 +544,10 @@ export default function Home() {
       // Consolidate volumes and set results
       const consolidated = consolidateToFirstVolume(allResults);
       setApiSearchResults(consolidated);
+
+      // Clear any previously selected books from mock data
+      setSelectedBooks([]);
+
       setInitialLoadComplete(true);
     } catch (error) {
       console.error('Initial data fetch error:', error);
@@ -899,7 +903,7 @@ export default function Home() {
       const shelfUrl = `${siteUrl}/shelf/${shelfId}`;
 
       // Create X share URL with category-specific text
-      const shareTitle = category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊';
+      const shareTitle = category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊';
       const shareText = encodeURIComponent(`${shareTitle} #THEFIVE`);
       const encodedUrl = encodeURIComponent(shelfUrl);
 

@@ -166,12 +166,12 @@ function extractVolumeNumber(title: string): number | null {
 
 // ベースタイトル（巻数を除外した部分）を取得
 function getBaseTitle(title: string): string {
-  let base = title;
+  let baseTitle = title;
   // 巻数パターンを除去
   for (const pattern of VOLUME_PATTERNS) {
-    base = base.replace(pattern, '').trim();
+    baseTitle = baseTitle.replace(pattern, '').trim();
   }
-  return base;
+  return baseTitle;
 }
 
 // タイトルが特別版かどうかをチェック

@@ -32,7 +32,7 @@ export interface ShelfData {
 }
 
 export interface BookData {
-  id: string;
+  id: string; // ISBN等の13桁以上の数値も扱うため、必ずstring型にする
   title: string;
   author: string;
   coverUrl: string;

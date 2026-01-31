@@ -174,7 +174,7 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
 
   for (const item of items) {
     const book = item.Item as Record<string, unknown>;
-    const isbn = book.isbn as string;
+    const isbn = String(book.isbn || ''); // 数値変換を防ぐため明示的にString化
     const title = (book.title || '') as string;
 
     // 除外キーワードチェック

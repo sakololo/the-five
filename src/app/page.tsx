@@ -515,6 +515,48 @@ export default function Home() {
   const [apiSearchResults, setApiSearchResults] = useState<Book[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  // Fetch initial popular manga on page load
+  const fetchInitialData = async () => {
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+
+      // Fetch popular titles from MOCK_MANGA_DATA (top 15 titles)
+      const titlesToFetch = MOCK_MANGA_DATA.slice(0, 15).map(m => m.title);
+      const allResults: Book[] = [];
+
+      for (const title of titlesToFetch) {
+        try {
+          const response = await fetch(`/api/search?q=${encodeURIComponent(title)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.books && Array.isArray(data.books)) {
+              allResults.push(...data.books);
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch ${title}:`, err);
+        }
+      }
+
+      // Consolidate volumes and set results
+      const consolidated = consolidateToFirstVolume(allResults);
+      setApiSearchResults(consolidated);
+      setInitialLoadComplete(true);
+    } catch (error) {
+      console.error('Initial data fetch error:', error);
+      setSearchError('初期データの取得に失敗しました');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Load initial data on mount
+  React.useEffect(() => {
+    fetchInitialData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -657,26 +699,26 @@ export default function Home() {
     window.open(twitterUrl, '_blank');
   };
 
-  // Filter manga - use API results when available, otherwise use mock data
+  // Filter manga - always use API results
   const filteredManga = (() => {
-    // If we have API results, use them but consolidate to avoid duplicates
-    if (searchQuery.trim() && apiSearchResults.length > 0) {
-      return consolidateToFirstVolume(apiSearchResults);
+    // If we have API results, use them (both from search and initial load)
+    if (apiSearchResults.length > 0) {
+      // Apply genre and publisher filters
+      let filtered = apiSearchResults;
+
+      if (currentGenre !== 'all') {
+        filtered = filtered.filter(manga => manga.genre === currentGenre);
+      }
+
+      if (currentPublisher !== 'all') {
+        filtered = filtered.filter(manga => manga.publisher?.includes(currentPublisher));
+      }
+
+      return filtered;
     }
 
-    // Otherwise, filter mock data
-    const basicFiltered = MOCK_MANGA_DATA.filter(manga => {
-      const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
-      const matchesPublisher = currentPublisher === 'all' || manga.publisher?.includes(currentPublisher);
-      const matchesSearch = !searchQuery.trim() ||
-        manga.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        manga.reading.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        manga.author.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesGenre && matchesPublisher && matchesSearch;
-    });
-
-    // Step 2: 1巻に集約（同じタイトルの複数巻は1巻のみ表示）
-    return consolidateToFirstVolume(basicFiltered);
+    // Show empty state while loading
+    return [];
   })();
 
   // API search function

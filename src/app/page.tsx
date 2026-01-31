@@ -1380,16 +1380,33 @@ export default function Home() {
                 <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
                   {Array.from({ length: selectedManga.totalVolumes }, (_, i) => i + 1).map((vol) => {
                     const isSelected = selectedBooks.some(b => b.manga.id === selectedManga.id && b.volume === vol);
+                    const volumeCoverUrl = selectedManga.coverUrlPerVolume?.[vol];
+
                     return (
                       <div
                         key={vol}
                         onClick={() => selectVolume(selectedManga, vol)}
                         className={`flex-shrink-0 cursor-pointer transition-all ${isSelected ? 'scale-110' : ''}`}
                       >
-                        <div className={`w-16 h-24 bg-gradient-to-br ${selectedManga.coverColor} rounded-lg shadow-md flex items-end justify-center pb-1 relative ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-105'}`}>
-                          <span className="text-white text-xs font-bold drop-shadow">{vol}巻</span>
+                        <div className={`w-16 h-24 rounded-lg shadow-md relative overflow-hidden ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-105'}`}>
+                          {volumeCoverUrl ? (
+                            <>
+                              <img
+                                src={volumeCoverUrl}
+                                alt={`${selectedManga.title} ${vol}巻`}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-1">
+                                <span className="text-white text-xs font-bold drop-shadow">{vol}巻</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className={`w-full h-full bg-gradient-to-br ${selectedManga.coverColor} flex items-end justify-center pb-1`}>
+                              <span className="text-white text-xs font-bold drop-shadow">{vol}巻</span>
+                            </div>
+                          )}
                           {isSelected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold z-10">
                               ✓
                             </div>
                           )}

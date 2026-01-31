@@ -1318,7 +1318,7 @@ export default function Home() {
                 <div className="mt-6 pt-4 border-t border-gray-200/50">
                   <p className="text-xs font-medium text-gray-500 mb-3">みんなが選んでいる作品</p>
                   <div className="flex flex-wrap gap-2">
-                    {RECOMMENDED_MANGA.slice(0, 8).map((manga, i) => (
+                    {MOCK_MANGA_DATA.slice(0, 8).map((manga, i) => (
                       <button
                         key={i}
                         onClick={() => setSearchQuery(manga.title)}

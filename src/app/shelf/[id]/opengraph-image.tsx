@@ -150,6 +150,8 @@ export default async function Image({ params }: Props) {
                                             <img
                                                 src={book.coverUrl}
                                                 alt={book.title}
+                                                width={width}
+                                                height={height}
                                                 style={{
                                                     width: '100%',
                                                     height: '100%',

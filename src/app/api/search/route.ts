@@ -169,9 +169,18 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
   const seen = new Set<string>();
   const books: Record<string, unknown>[] = [];
 
+  // 除外キーワード（完全版、愛蔵版など）
+  const excludeKeywords = ['完全版', '愛蔵版', '新装版', 'BOX', 'セット', '特装版', '限定版', 'DX版'];
+
   for (const item of items) {
     const book = item.Item as Record<string, unknown>;
     const isbn = book.isbn as string;
+    const title = (book.title || '') as string;
+
+    // 除外キーワードチェック
+    if (excludeKeywords.some(keyword => title.includes(keyword))) {
+      continue;
+    }
 
     // Skip duplicates
     if (isbn && seen.has(isbn)) continue;
@@ -181,13 +190,13 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
 
     books.push({
       id: books.length + 1,
-      title: book.title || '',
+      title: title,
       author: book.author || '',
       publisher: book.publisherName || '',
       isbn: isbn || '',
       coverUrl: coverUrl,
       hasImage: !!coverUrl,
-      volumeNumber: extractVolumeNumber(book.title as string),
+      volumeNumber: extractVolumeNumber(title),
     });
   }
 
@@ -277,7 +286,19 @@ export async function GET(request: NextRequest) {
 }
 
 function extractVolumeNumber(title: string): number | null {
-  // Try to extract volume number from title (e.g., "ワンピース 1" or "ワンピース(1)")
-  const match = title.match(/[(（\s](\d+)[)）\s]?$/);
-  return match ? parseInt(match[1], 10) : null;
+  // Try multiple patterns for volume number extraction
+
+  // Pattern 1: 括弧内の数字（全角・半角） e.g., "タイトル(1)" or "タイトル（1）"
+  let match = title.match(/[(（](\d+)[)）]/);
+  if (match) return parseInt(match[1], 10);
+
+  // Pattern 2: スペース+数字 e.g., "タイトル 1" or "タイトル　1"
+  match = title.match(/[\s　](\d+)$/);
+  if (match) return parseInt(match[1], 10);
+
+  // Pattern 3: 「巻」の前の数字 e.g., "タイトル 第1巻" or "タイトル1巻"
+  match = title.match(/(\d+)[巻]/);
+  if (match) return parseInt(match[1], 10);
+
+  return null;
 }

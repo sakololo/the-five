@@ -1156,10 +1156,10 @@ export default function Home() {
             {/* Mode Toggle - テーマ選択 */}
             <div className="flex flex-col items-center gap-2 mt-10">
               <p className="text-sm font-medium text-gray-400">背景テーマを選択</p>
-              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-[320px]">
+              <div className="glass-card flex rounded-full p-2 gap-1 w-full max-w-[320px]">
                 <button
                   onClick={() => setMode('gallery')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${mode === 'gallery'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all text-center ${mode === 'gallery'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1168,7 +1168,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setMode('magazine')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${mode === 'magazine'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all text-center ${mode === 'magazine'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1181,10 +1181,10 @@ export default function Home() {
             {/* Category Selection - 本棚タイトル選択 */}
             <div className="flex flex-col items-center gap-2 mt-6">
               <p className="text-sm font-medium text-gray-400">本棚のタイトル</p>
-              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-[320px]">
+              <div className="glass-card flex rounded-full p-2 gap-1 w-full max-w-[320px]">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${category === 'identity'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1193,7 +1193,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${category === 'recommend'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1409,20 +1409,30 @@ export default function Home() {
               <div className="mb-6">
                 <label className="block text-sm font-bold text-gray-700 mb-2">マンガを検索</label>
                 <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        // 検索クエリが既にリアクティブにフィルタリングされているので、Enterで検索セクションにスクロール
-                        document.getElementById('search-results')?.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                    placeholder="タイトルや作者名を入力（例：ワンピ、スラダン）"
-                    className="flex-1 px-5 py-4 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 text-base"
-                  />
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('search-results')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      placeholder="タイトルや作者名を入力（例：ワンピ、スラダン）"
+                      className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 text-base"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600"
+                        aria-label="検索をクリア"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                   <button className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg shadow-blue-500/25">
                     検索
                   </button>

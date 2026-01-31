@@ -1684,7 +1684,7 @@ export default function Home() {
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
                   {selectedBooks.map((book) => (
                     <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
+                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
                     </div>
                   ))}
                 </div>
@@ -1715,7 +1715,7 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
                   {selectedBooks.map((book) => (
                     <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
+                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
                     </div>
                   ))}
                 </div>
@@ -1760,7 +1760,7 @@ export default function Home() {
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
                   {selectedBooks.map((book) => (
                     <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
+                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
                     </div>
                   ))}
                 </div>
@@ -1792,7 +1792,7 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
                   {selectedBooks.map((book) => (
                     <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
+                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
                     </div>
                   ))}
                 </div>

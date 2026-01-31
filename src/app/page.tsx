@@ -5,7 +5,7 @@ const IS_AI_ENABLED = false;
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import * as htmlToImage from 'html-to-image';
+
 import {
   DndContext,
   closestCenter,
@@ -120,6 +120,7 @@ interface Book {
   coverColor: string;
   itemUrl?: string; // 楽天ブックスの販売ページURL
   publisher?: string; // 出版社
+  coverUrlPerVolume?: Record<number, string>; // 巻ごとの書影マップ
 }
 
 const PUBLISHERS = ['all', '集英社', '講談社', '小学館', 'KADOKAWA', 'スクウェア・エニックス', '白泉社'];
@@ -151,8 +152,13 @@ const VOLUME_PATTERNS = [
 // タイトルから巻数を抽出
 function extractVolumeNumber(title: string): number | null {
   if (typeof title !== 'string') return null;
+  // 全角数字を半角に変換
+  const normalizedTitle = title.replace(/[０-９]/g, (s) =>
+    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+  );
+
   for (const pattern of VOLUME_PATTERNS) {
-    const match = title.match(pattern);
+    const match = normalizedTitle.match(pattern);
     if (match) return parseInt(match[1], 10);
   }
   return null;
@@ -162,32 +168,82 @@ function extractVolumeNumber(title: string): number | null {
 function getBaseTitle(title: string): string {
   if (typeof title !== 'string') return '';
   let result = title;
+
+  // 全角数字を半角に変換
+  const normalizedTitle = title.replace(/[０-９]/g, (s) =>
+    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+  );
+
   for (const pattern of VOLUME_PATTERNS) {
     result = result.replace(pattern, '').trim();
   }
+
+  // 特殊な隅付き括弧やノイズ除去
+  result = result.replace(/\(\s*\)/g, '').replace(/（\s*）/g, '').trim();
   return result;
 }
 
-// 検索結果を1巻に集約（同じベースタイトルの中で最も若い巻数のみを残す）
+// 同一タイトルの巻数違いを集約し、最大巻数と書影マップを生成
 function consolidateToFirstVolume(manga: Book[]): Book[] {
-  const titleMap = new Map<string, Book>();
+  // bookBaseTitle -> { minVolBook, maxVol, minVol, covers }
+  const titleMap = new Map<string, { minVolBook: Book, maxVol: number, minVol: number, covers: Record<number, string> }>();
 
   for (const book of manga) {
     const bookBaseTitle = getBaseTitle(book.title);
-    const volumeNum = extractVolumeNumber(book.title) ?? 1;
+
+    // タイトルから巻数抽出を試みる
+    let volumeNum = extractVolumeNumber(book.title);
+
+    // 抽出できなかった場合、API検索結果の「book.volumeNumber」がmappedされているtotalVolumesを使う
+    // (Mockデータの場合はtotalVolumes=シリーズ総数なので1より大きいが、タイトルに巻数がないのでnullになるはず)
+    // 競合回避のため、MockっぽいID("1"など)の場合は1とみなす、などのヒューリスティックを入れる手もあるが
+    // ここではシンプルに「抽出できなければ1 (またはAPIデータの値)」とする
+    if (volumeNum === null) {
+      // もしこれがAPI検索結果(IDが長い等)なら、そのtotalVolumes(実はvolumeNumber)を使う
+      // しかしMockデータ(ID="1")だとtotalVolumes=107とかなので、これをvolumeNumにしてはいけない
+      // 安全策: タイトルに巻数がなければ「巻数不明の代表巻」として1扱いする
+      volumeNum = 1;
+    }
 
     const existing = titleMap.get(bookBaseTitle);
+
     if (!existing) {
-      titleMap.set(bookBaseTitle, book);
+      titleMap.set(bookBaseTitle, {
+        minVolBook: book,
+        maxVol: volumeNum,
+        minVol: volumeNum,
+        covers: { [volumeNum]: book.coverUrl }
+      });
     } else {
-      const existingVolume = extractVolumeNumber(existing.title) ?? 1;
-      if (volumeNum < existingVolume) {
-        titleMap.set(bookBaseTitle, book);
+      // 書影を保存
+      existing.covers[volumeNum] = book.coverUrl;
+
+      // 最大巻数の更新
+      if (volumeNum > existing.maxVol) {
+        existing.maxVol = volumeNum;
+      }
+
+      // 代表巻（最小巻数）の更新
+      if (volumeNum < existing.minVol) {
+        existing.minVol = volumeNum;
+        existing.minVolBook = book;
       }
     }
   }
 
-  return Array.from(titleMap.values());
+  return Array.from(titleMap.values()).map(({ minVolBook, maxVol, covers }) => {
+    // APIデータの場合、minVolBook.totalVolumesは「その巻の巻数」が入っていることが多い
+    // (例: 14巻なら14)。これを、集計したmaxVol(14)と比較しても同じだが、
+    // Mockデータの場合、minVolBook.totalVolumesは「総巻数(107)」で、maxVolは「1」になる。
+    // したがって、大きい方を採用すれば正しい総巻数になる。
+    const finalTotalVolumes = Math.max(minVolBook.totalVolumes, maxVol);
+
+    return {
+      ...minVolBook,
+      totalVolumes: finalTotalVolumes,
+      coverUrlPerVolume: covers
+    };
+  });
 }
 
 // 同じベースタイトルの全巻を取得
@@ -402,7 +458,7 @@ function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps
         {...listeners}
         className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded ${shadowStyle} hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 ${mode === 'magazine' ? 'border-white/30' : 'border-white'} overflow-hidden relative`}
       >
-        <img src={book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-cover" />
+        <img src={book.manga.coverUrlPerVolume?.[book.volume] ?? book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-contain" />
         {/* Remove button - Always visible on mobile, hover on desktop */}
         <button
           onClick={(e) => {
@@ -603,9 +659,9 @@ export default function Home() {
 
   // Filter manga - use API results when available, otherwise use mock data
   const filteredManga = (() => {
-    // If we have API results, use them
+    // If we have API results, use them but consolidate to avoid duplicates
     if (searchQuery.trim() && apiSearchResults.length > 0) {
-      return apiSearchResults;
+      return consolidateToFirstVolume(apiSearchResults);
     }
 
     // Otherwise, filter mock data
@@ -748,76 +804,12 @@ export default function Home() {
     setAppraisalResult({ soulTitle, analysis: appraisal.analysis });
     setIsAppraising(false);
 
-    // Generate preview image for responsive display
+    // Generate preview image for responsive display - DISABLED client-side generation
+    /*
     setTimeout(async () => {
-      const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
-      const card = document.getElementById(cardId) as HTMLElement | null;
-      if (!card) {
-        console.error('Share card not found:', cardId);
-        return;
-      }
-
-      try {
-        // Make card visible for rendering
-        card.style.visibility = 'visible';
-
-        // Wait for images to load
-        const images = card.querySelectorAll('img');
-        await Promise.all(
-          Array.from(images).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise((resolve) => {
-              img.onload = resolve;
-              img.onerror = resolve;
-              // Timeout after 3 seconds
-              setTimeout(resolve, 3000);
-            });
-          })
-        );
-
-        // Small delay to ensure rendering is complete
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        const dataUrl = await htmlToImage.toPng(card, {
-          quality: 0.95,
-          pixelRatio: 2,
-          backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-          skipFonts: true,
-          cacheBust: true,
-        });
-
-        // Hide card again
-        card.style.visibility = 'hidden';
-
-        setPreviewImage(dataUrl);
-      } catch (e) {
-        console.error('Preview generation failed:', e);
-
-        // Hide card on error
-        card.style.visibility = 'hidden';
-
-        // Retry once
-        setTimeout(async () => {
-          try {
-            card.style.visibility = 'visible';
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            const dataUrl = await htmlToImage.toPng(card, {
-              quality: 0.8,
-              pixelRatio: 2,
-              backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-              skipFonts: true,
-            });
-
-            card.style.visibility = 'hidden';
-            setPreviewImage(dataUrl);
-          } catch (retryError) {
-            console.error('Retry failed:', retryError);
-            card.style.visibility = 'hidden';
-          }
-        }, 500);
-      }
+      // Preview logic removed to avoid CORS issues
     }, 1500);
+    */
 
     // Typing effect
     for (let i = 0; i <= soulTitle.length; i++) {
@@ -829,260 +821,9 @@ export default function Home() {
     setTimeout(() => setShowDetails(true), 500);
   };
 
-  // Save image based on current mode with Web Share API support (iOS Safari optimized)
-  const saveImage = async () => {
-    const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
-    const card = document.getElementById(cardId);
-    if (!card || typeof window === 'undefined') return;
 
-    showToastMessage('鑑定書を作成中...');
 
-    try {
-      // Use toBlob for better iOS compatibility
-      const blob = await htmlToImage.toBlob(card, {
-        quality: 1,
-        pixelRatio: 3,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-        skipFonts: true,
-        filter: (node) => {
-          if (node instanceof HTMLLinkElement && node.href.includes('fonts.googleapis.com')) {
-            return false;
-          }
-          return true;
-        },
-      });
 
-      if (!blob) {
-        throw new Error('Failed to generate image');
-      }
-
-      // Create File object explicitly
-      const file = new File([blob], `the-five-${mode}-${Date.now()}.png`, { type: 'image/png' });
-
-      // Detect iOS/iPadOS
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      // For iOS, force try navigator.share with files only (no title/text)
-      if (isIOS && navigator.share) {
-        try {
-          await navigator.share({
-            files: [file],
-          });
-          showToastMessage('共有メニューを開きました！');
-          return; // Success, exit early
-        } catch (shareError) {
-          const error = shareError as Error;
-          // User cancelled - do nothing
-          if (error.name === 'AbortError') {
-            return;
-          }
-          // Share failed, fall through to download
-          console.warn('iOS share failed:', error);
-        }
-      }
-
-      // For non-iOS or if iOS share failed, try standard Web Share API
-      if (!isIOS && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-          });
-          showToastMessage('共有メニューを開きました！');
-          return; // Success, exit early
-        } catch (shareError) {
-          const error = shareError as Error;
-          if (error.name === 'AbortError') {
-            return;
-          }
-          // Fall through to download
-        }
-      }
-      // Fallback for iOS: Open image in new tab for long-press save
-      if (isIOS) {
-        // Convert blob to data URL and open in new tab
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          const newTab = window.open();
-          if (newTab) {
-            newTab.document.write(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>鑑定書を保存</title>
-                <style>
-                  body { margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; font-family: -apple-system, sans-serif; }
-                  img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-                  p { color: #666; text-align: center; margin-top: 20px; font-size: 14px; }
-                </style>
-              </head>
-              <body>
-                <img src="${dataUrl}" alt="鑑定書" />
-                <p>📱 画像を長押しして「写真に保存」を選択してください</p>
-              </body>
-              </html>
-            `);
-            newTab.document.close();
-          }
-        };
-        reader.readAsDataURL(blob);
-        showToastMessage('画像を開きました。長押しで保存できます！');
-      } else {
-        // Non-iOS: regular download
-        const dataUrl = await htmlToImage.toPng(card, {
-          quality: 1,
-          pixelRatio: 3,
-          backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-          skipFonts: true,
-        });
-        const link = document.createElement('a');
-        link.download = file.name;
-        link.href = dataUrl;
-        link.click();
-        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
-      }
-    } catch (error) {
-      console.error('Image save error:', error);
-      showToastMessage('画像の作成に失敗しました。もう一度お試しください。');
-    }
-  };
-
-  // AI無効モード用: モーダルなしで直接画像を保存 (iOS Safari optimized)
-  const saveImageDirectly = async () => {
-    if (selectedBooks.length !== 5) return;
-
-    const cardId = mode === 'magazine' ? 'share-card-full-direct' : 'share-card-simple-direct';
-    const card = document.getElementById(cardId);
-    if (!card || typeof window === 'undefined') return;
-
-    showToastMessage('本棚画像を作成中...');
-
-    try {
-      // Make card visible and positioned on-screen for rendering
-      const originalStyles = {
-        visibility: card.style.visibility,
-        position: card.style.position,
-        left: card.style.left,
-        zIndex: card.style.zIndex,
-      };
-      card.style.visibility = 'visible';
-      card.style.position = 'absolute';
-      card.style.left = '0px';
-      card.style.zIndex = '9999';
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Use toBlob for better iOS compatibility
-      const blob = await htmlToImage.toBlob(card, {
-        quality: 1,
-        pixelRatio: 2,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
-        cacheBust: true,
-      });
-
-      // Restore original styles
-      card.style.visibility = originalStyles.visibility;
-      card.style.position = originalStyles.position;
-      card.style.left = originalStyles.left;
-      card.style.zIndex = originalStyles.zIndex;
-
-      if (!blob) {
-        throw new Error('Failed to generate image');
-      }
-
-      // Create File object explicitly
-      const file = new File([blob], `my-best-five-${mode}-${Date.now()}.png`, { type: 'image/png' });
-
-      // Detect iOS/iPadOS
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      // For iOS, force try navigator.share with files only (no title/text)
-      if (isIOS && navigator.share) {
-        try {
-          await navigator.share({
-            files: [file],
-          });
-          showToastMessage('共有メニューを開きました！');
-          return; // Success, exit early
-        } catch (shareError) {
-          const error = shareError as Error;
-          // User cancelled - do nothing
-          if (error.name === 'AbortError') {
-            return;
-          }
-          // Share failed, fall through to download
-          console.warn('iOS share failed:', error);
-        }
-      }
-
-      // For non-iOS or if iOS share failed, try standard Web Share API
-      if (!isIOS && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-          });
-          showToastMessage('共有メニューを開きました！');
-          return; // Success, exit early
-        } catch (shareError) {
-          const error = shareError as Error;
-          if (error.name === 'AbortError') {
-            return;
-          }
-          // Fall through to download
-        }
-      }
-
-      // Fallback for iOS: Open image in new tab for long-press save
-      if (isIOS) {
-        // Convert blob to data URL and open in new tab
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          // Open in new tab - user can long-press to save
-          const newTab = window.open();
-          if (newTab) {
-            newTab.document.write(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>本棚画像を保存</title>
-                <style>
-                  body { margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; font-family: -apple-system, sans-serif; }
-                  img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-                  p { color: #666; text-align: center; margin-top: 20px; font-size: 14px; }
-                </style>
-              </head>
-              <body>
-                <img src="${dataUrl}" alt="本棚画像" />
-                <p>📱 画像を長押しして「写真に保存」を選択してください</p>
-              </body>
-              </html>
-            `);
-            newTab.document.close();
-          }
-        };
-        reader.readAsDataURL(blob);
-        showToastMessage('画像を開きました。長押しで保存できます！');
-      } else {
-        // Non-iOS: regular download
-        const dataUrl = await htmlToImage.toPng(card, {
-          quality: 1,
-          pixelRatio: 2,
-          backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
-        });
-        const link = document.createElement('a');
-        link.download = file.name;
-        link.href = dataUrl;
-        link.click();
-        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
-      }
-    } catch (error) {
-      console.error('Image save error:', error);
-      showToastMessage('画像の作成に失敗しました。もう一度お試しください。');
-    }
-  };
 
   // X share with Supabase save
   const shareToXWithSave = async () => {
@@ -1212,10 +953,10 @@ export default function Home() {
             {/* Mode Toggle - テーマ選択 */}
             <div className="flex flex-col items-center gap-2 mt-10">
               <p className="text-sm font-medium text-gray-400">背景テーマを選択</p>
-              <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[360px]">
+              <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
                 <button
                   onClick={() => setMode('gallery')}
-                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all text-center ${mode === 'gallery'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all text-center whitespace-nowrap ${mode === 'gallery'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1224,7 +965,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setMode('magazine')}
-                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all text-center ${mode === 'magazine'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all text-center whitespace-nowrap ${mode === 'magazine'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1240,7 +981,7 @@ export default function Home() {
               <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1249,7 +990,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1418,27 +1159,17 @@ export default function Home() {
                     生成する
                   </button>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-3 items-center">
-                    <button
-                      onClick={saveImageDirectly}
-                      disabled={!isFull}
-                      className={`px-10 py-4 rounded-2xl text-lg font-bold transition transform active:scale-95 tracking-wide ${isFull
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xl shadow-orange-500/30 hover:from-amber-600 hover:to-orange-600 hover:scale-105'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                    >
-                      本棚を保存
-                    </button>
+                  <div className="flex flex-col sm:flex-row gap-3 items-center w-full justify-center">
                     <button
                       onClick={shareToXWithSave}
                       disabled={!isFull || isSaving}
-                      className={`px-10 py-4 rounded-2xl text-lg font-bold transition transform active:scale-95 tracking-wide flex items-center gap-2 ${isFull && !isSaving
-                        ? 'bg-black text-white shadow-xl hover:bg-gray-800 hover:scale-105'
+                      className={`px-20 py-4 rounded-xl text-lg font-bold transition transform active:scale-95 tracking-wide flex items-center gap-3 shadow-xl ${isFull && !isSaving
+                        ? 'bg-black text-white hover:bg-gray-800 hover:scale-105'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                     >
-                      <span className="text-xl">𝕏</span>
-                      <span>{isSaving ? '保存中...' : 'でシェア'}</span>
+                      <span className="text-2xl">𝕏</span>
+                      <span>{isSaving ? '保存中...' : '結果をシェア'}</span>
                     </button>
                   </div>
                 )}
@@ -1593,6 +1324,17 @@ export default function Home() {
           <p className="text-center text-xs text-gray-400 mt-1">
             {IS_AI_ENABLED ? '最高の5冊を選び、AIに鑑定してもらおう' : '最高の5冊を選んで、あなただけの本棚を作ろう'}
           </p>
+          <div className="mt-4 text-center">
+            {/* Rakuten Credit */}
+            <a
+              href="https://webservice.rakuten.co.jp/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Supported by Rakuten Developers
+            </a>
+          </div>
           <button
             onClick={() => setShowDisclaimerModal(true)}
             className="block mx-auto mt-4 text-xs text-gray-400 hover:text-gray-600 underline transition"
@@ -1671,157 +1413,8 @@ export default function Home() {
       </div>
 
       {/* Hidden Share Cards for html-to-image capture - MUST be outside modal for reliable rendering */}
-      {
-        appraisalResult && (
-          <>
-            <div
-              id="share-card-full"
-              style={{
-                position: 'fixed',
-                left: '-9999px',
-                top: 0,
-                width: 800,
-                height: 450,
-                visibility: 'hidden',
-                zIndex: -1,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              />
-              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.25)' }} />
-              <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 24 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 8 }}>YOUR SOUL NAME</p>
-                  <h2 style={{ fontSize: 28, fontWeight: 900, color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{appraisalResult.soulTitle}</h2>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
-                  {selectedBooks.map((book) => (
-                    <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>2026.01</p>
-                </div>
-              </div>
-            </div>
+      {/* Hidden Share Cards for html-to-image capture - MUST be outside modal for reliable rendering */}
 
-            <div
-              id="share-card-simple"
-              style={{
-                position: 'fixed',
-                left: '-9999px',
-                top: 0,
-                width: 800,
-                height: 450,
-                backgroundColor: '#FAF9F6',
-                visibility: 'hidden',
-                zIndex: -1,
-              }}
-            >
-              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: 24 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <h2 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '0.05em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif" }}>私の５冊</h2>
-                  <p style={{ fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase', marginTop: 8, color: '#666', fontWeight: 500 }}>THE FIVE</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
-                  {selectedBooks.map((book) => (
-                    <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </>
-        )
-      }
-
-      {/* Hidden Share Cards for direct save (AI disabled mode) */}
-      {
-        selectedBooks.length === 5 && (
-          <>
-            {/* Magazine style - 本棚背景 */}
-            <div
-              id="share-card-full-direct"
-              style={{
-                position: 'fixed',
-                left: '-9999px',
-                top: 0,
-                width: 800,
-                height: 450,
-                visibility: 'hidden',
-                zIndex: -1,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              />
-              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.2)' }} />
-              <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 28 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <h2 style={{ fontSize: 32, fontWeight: 900, color: 'white', textShadow: '0 2px 15px rgba(0,0,0,0.6)', letterSpacing: '0.05em' }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.2em', marginTop: 4 }}>{category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}</p>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
-                  {selectedBooks.map((book) => (
-                    <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 500 }}>2026.01.30</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Minimal style - 白背景 */}
-            <div
-              id="share-card-simple-direct"
-              style={{
-                position: 'fixed',
-                left: '-9999px',
-                top: 0,
-                width: 800,
-                height: 450,
-                backgroundColor: '#FAF9F6',
-                visibility: 'hidden',
-                zIndex: -1,
-              }}
-            >
-              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, padding: 32 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <h2 style={{ fontSize: 36, letterSpacing: '0.08em', color: '#1A1A1A', fontFamily: "'Shippori Mincho', serif", fontWeight: 300 }}>{category === 'recommend' ? 'Recommended' : 'My Best Five'}</h2>
-                  <p style={{ fontSize: 11, letterSpacing: '0.25em', marginTop: 6, color: '#888', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}>{category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
-                  {selectedBooks.map((book) => (
-                    <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', backgroundColor: 'white' }}>
-                      <img src={book.manga.coverUrl} alt="Book cover" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} />
-                    </div>
-                  ))}
-                </div>
-                <p style={{ fontSize: 10, letterSpacing: '0.15em', color: '#AAA', marginTop: 8 }}>2026.01.30</p>
-              </div>
-            </div>
-          </>
-        )
-      }
 
       {/* AI Appraisal Modal */}
       <div className={`modal fixed inset-0 z-[60] flex items-center justify-center ${showAppraisalModal ? 'open' : ''}`}>
@@ -1905,18 +1498,18 @@ export default function Home() {
                 {/* Action Buttons */}
                 <div className="flex flex-col items-center gap-3">
                   <button
-                    onClick={shareToX}
+                    onClick={shareToXWithSave}
+                    disabled={isSaving}
                     className="w-full px-8 py-4 bg-black hover:bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
                   >
-                    <span className="text-xl">𝕏</span>
-                    <span>でシェア</span>
-                  </button>
-
-                  <button
-                    onClick={saveImage}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold shadow-lg hover:from-amber-600 hover:to-orange-600 transition flex items-center justify-center gap-2"
-                  >
-                    <span>💾</span> 画像を保存・共有
+                    {isSaving ? (
+                      <span className="animate-pulse">保存中...</span>
+                    ) : (
+                      <>
+                        <span className="text-xl">𝕏</span>
+                        <span>でシェア</span>
+                      </>
+                    )}
                   </button>
 
                   <button
@@ -2002,7 +1595,7 @@ export default function Home() {
                   <h3 className="text-md font-bold text-gray-800 pt-4">免責事項</h3>
 
                   <p>
-                    当サイトの利用（画像の保存やシェア等を含む）によって生じた損害やトラブルについて、運営者は一切の責任を負いかねます。あらかじめご了承ください。
+                    当サイトの利用によって生じた損害やトラブルについて、運営者は一切の責任を負いかねます。あらかじめご了承ください。
                   </p>
                 </div>
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 // Simple in-memory rate limiter
 const requestCounts = new Map<string, { count: number; timestamp: number }>();
@@ -66,7 +67,16 @@ const MANGA_ALIASES: Record<string, string> = {
   'テニプリ': 'テニスの王子様',
   'マッシュル': 'マッシュル',
   'アンデラ': 'アンデッドアンラック',
-  'サカモト': 'サカモトデイズ',
+  'サカモト': 'SAKAMOTO DAYS', // カタカナだとヒットしないため英語に変更
+  'サカモトデイズ': 'SAKAMOTO DAYS',
+  'チ。': 'チ。-地球の運動について-',
+  'チ': 'チ。-地球の運動について-',
+  '地動説': 'チ。-地球の運動について-',
+  '金カム': 'ゴールデンカムイ',
+  '着せ恋': 'その着せ替え人形は恋をする',
+  'ウィンドブレイカー': 'WIND BREAKER',
+  '防風': 'WIND BREAKER',
+  'めだリスト': 'メダリスト',
 };
 
 function checkRateLimit(ip: string): boolean {
@@ -169,8 +179,9 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
   const seen = new Set<string>();
   const books: Record<string, unknown>[] = [];
 
-  // 除外キーワード（完全版、愛蔵版など）
-  const excludeKeywords = ['完全版', '愛蔵版', '新装版', 'BOX', 'セット', '特装版', '限定版', 'DX版'];
+  // 除外キーワード（BOX、セットのみ除外する形に緩和）
+  // 完全版、愛蔵版、新装版などは「そのバージョンの本」として有効なため除外しない
+  const excludeKeywords = ['BOX', 'セット'];
 
   for (const item of items) {
     const book = item.Item as Record<string, unknown>;
@@ -215,6 +226,25 @@ function sortBooks(books: Record<string, unknown>[]): Record<string, unknown>[] 
   });
 }
 
+// Search Logging Logic
+async function logFailedSearch(query: string, ip: string, userAgent: string) {
+  try {
+    const { error } = await supabase
+      .from('search_logs')
+      .insert({
+        query: query,
+        ip: ip, // Hashed or raw depending on privacy policy, kept raw for now as per internal use
+        user_agent: userAgent,
+      });
+
+    if (error) {
+      console.warn('Failed to log search:', error.message);
+    }
+  } catch (err) {
+    console.warn('Error in logFailedSearch:', err);
+  }
+}
+
 export async function GET(request: NextRequest) {
   // Validate origin
   if (!validateOrigin(request)) {
@@ -245,12 +275,8 @@ export async function GET(request: NextRequest) {
   }
 
   const appId = process.env.RAKUTEN_APP_ID;
-  // If no App ID, fallback immediately (or handle gracefully)
-  // For now we try to proceed, but if it's missing or invalid, we catch the error below.
   if (!appId) {
     console.warn('RAKUTEN_APP_ID is not set. Using local fallback.');
-    // Return empty or mock? Let's return empty with a warning flag if possible,
-    // or just empty array so it doesn't crash.
     return NextResponse.json({ books: [], warning: 'No API Key' });
   }
 
@@ -268,6 +294,13 @@ export async function GET(request: NextRequest) {
     const allItems = [...titleResults, ...authorResults];
     const books = transformBooks(allItems);
 
+    // Log if no results found
+    if (books.length === 0 && query.trim().length > 0) {
+      const userAgent = request.headers.get('user-agent') || 'unknown';
+      // Non-blocking log
+      logFailedSearch(query, ip, userAgent).catch(e => console.error('Log error', e));
+    }
+
     // Sort: images first
     const sortedBooks = sortBooks(books);
 
@@ -279,7 +312,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Search API error:', error);
-    // FALLBACK: Return empty list instead of 500 to prevent UI crash
     return NextResponse.json({
       books: [],
       warning: 'Search failed, returning empty results'

@@ -1147,7 +1147,8 @@ export default function Home() {
                 className="text-sm mt-4 opacity-70 leading-relaxed"
                 style={{ fontFamily: "'Kaisei Tokumin', serif" }}
               >
-                人生で最も記憶に残っている本、あるいは今おすすめしたい本を５冊選んで、<br className="hidden sm:inline" />
+                人生で最も記憶に残っている本、<br className="sm:hidden" />
+                あるいは今おすすめしたい本を５冊選んで、<br />
                 あなただけの本棚を作りましょう。
               </p>
             </div>
@@ -1155,10 +1156,10 @@ export default function Home() {
             {/* Mode Toggle - テーマ選択 */}
             <div className="flex flex-col items-center gap-2 mt-10">
               <p className="text-sm font-medium text-gray-400">背景テーマを選択</p>
-              <div className="glass-card flex rounded-full p-1.5 gap-1">
+              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-[320px]">
                 <button
                   onClick={() => setMode('gallery')}
-                  className={`px-8 py-3 rounded-full text-sm font-medium transition-all ${mode === 'gallery'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${mode === 'gallery'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1167,7 +1168,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setMode('magazine')}
-                  className={`px-8 py-3 rounded-full text-sm font-medium transition-all ${mode === 'magazine'
+                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${mode === 'magazine'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1180,10 +1181,10 @@ export default function Home() {
             {/* Category Selection - 本棚タイトル選択 */}
             <div className="flex flex-col items-center gap-2 mt-6">
               <p className="text-sm font-medium text-gray-400">本棚のタイトル</p>
-              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-xs">
+              <div className="glass-card flex rounded-full p-1.5 gap-1 w-full max-w-[320px]">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${category === 'identity'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${category === 'identity'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1192,7 +1193,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${category === 'recommend'
+                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${category === 'recommend'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}

@@ -8,9 +8,6 @@ interface ShelfDisplayProps {
 
 export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
     const isMagazine = shelf.theme === 'magazine';
-    const categoryTitle = shelf.category === 'recommend'
-        ? '今読んでほしい、5冊。'
-        : '私を形作る、5冊。';
 
     return (
         <div
@@ -29,49 +26,23 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                             backgroundPosition: 'center',
                         }}
                     />
-                    <div className="absolute inset-0 bg-white/20" />
+                    <div className="absolute inset-0 bg-black/30" />
                 </>
             ) : null}
 
-            {/* Content */}
-            <div className="relative z-10 h-full flex flex-col justify-between p-6 md:p-8">
-                {/* Title */}
-                <div className="text-center">
-                    {isMagazine ? (
-                        <>
-                            <h2
-                                className="text-2xl md:text-3xl font-black text-white drop-shadow-lg"
-                                style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
-                            >
-                                {categoryTitle}
-                            </h2>
-                            <p className="text-white/60 text-xs tracking-[0.3em] uppercase mt-1">THE FIVE</p>
-                        </>
-                    ) : (
-                        <>
-                            <h2
-                                className="text-2xl md:text-3xl tracking-wide"
-                                style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 400 }}
-                            >
-                                {categoryTitle}
-                            </h2>
-                            <p
-                                className="text-xs tracking-[0.3em] uppercase mt-2"
-                                style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif" }}
-                            >
-                                THE FIVE
-                            </p>
-                        </>
-                    )}
-                </div>
-
+            {/* Content - Books Only (Title moved to page) */}
+            <div className="relative z-10 h-full flex flex-col justify-center items-center p-6 md:p-8">
                 {/* Books */}
-                <div className="flex justify-center items-end gap-4 md:gap-6 px-4 md:px-8">
+                <div className="flex justify-center items-end gap-3 md:gap-5">
                     {shelf.books.map((book, index) => {
                         const isFeatured = index === 2;
+                        // 書籍らしいアスペクト比 (約2:3)
                         const size = isFeatured
-                            ? 'w-20 h-28 md:w-32 md:h-48'
-                            : 'w-16 h-24 md:w-24 md:h-36';
+                            ? 'w-24 md:w-36'
+                            : 'w-18 md:w-28';
+                        const height = isFeatured
+                            ? 'h-36 md:h-52'
+                            : 'h-28 md:h-40';
 
                         return (
                             <a
@@ -79,9 +50,9 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                                 href={book.itemUrl || `https://books.rakuten.co.jp/search?sitem=${encodeURIComponent(book.title)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`${size} rounded-lg overflow-hidden transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer ${isMagazine
+                                className={`${size} ${height} rounded-lg overflow-hidden transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer ${isMagazine
                                     ? 'shadow-2xl border-2 border-white/30'
-                                    : 'shadow-lg hover:shadow-xl'
+                                    : 'shadow-lg hover:shadow-xl border border-gray-200'
                                     }`}
                                 title={`${book.title} ${book.volume}巻 - 楽天ブックスで見る`}
                             >
@@ -95,8 +66,8 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                     })}
                 </div>
 
-                {/* Date */}
-                <div className={`text-right ${isMagazine ? 'text-white/50' : 'text-gray-400'} text-xs`}>
+                {/* Date - Small and subtle */}
+                <div className={`absolute bottom-3 right-4 ${isMagazine ? 'text-white/40' : 'text-gray-300'} text-xs`}>
                     {new Date(shelf.created_at || Date.now()).toLocaleDateString('ja-JP', {
                         year: 'numeric',
                         month: '2-digit',
@@ -107,3 +78,4 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
         </div>
     );
 }
+

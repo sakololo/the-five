@@ -51,21 +51,42 @@ export default async function ShelfPage({ params }: PageProps) {
         notFound();
     }
 
+    const categoryTitle = shelf.category === 'recommend'
+        ? '今読んでほしい、5冊。'
+        : '私を形作る、5冊。';
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* Header */}
                 <header className="text-center mb-8">
-                    <h1
-                        className="text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 bg-clip-text text-transparent tracking-tight"
+                    <a href="/" className="inline-block cursor-pointer">
+                        <h1
+                            className="text-4xl font-bold tracking-wide"
+                            style={{
+                                fontFamily: "'Permanent Marker', cursive",
+                                fontStyle: 'italic',
+                                transform: 'skewX(-8deg)',
+                            }}
+                        >
+                            THE FIVE
+                        </h1>
+                    </a>
+                    <p
+                        className="text-lg text-gray-700 mt-4 font-medium"
+                        style={{ fontFamily: "'Kaisei Tokumin', serif" }}
                     >
-                        THE FIVE
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-2">私を形づくる5冊</p>
+                        {categoryTitle}
+                    </p>
                 </header>
 
                 {/* Shelf Display */}
                 <ShelfDisplay shelf={shelf} />
+
+                {/* Hint */}
+                <p className="text-center text-sm text-gray-500 mt-4">
+                    📚 本の表紙をタップすると、購入ページへ移動します
+                </p>
 
                 {/* Call to Action */}
                 <div className="text-center mt-12">

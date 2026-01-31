@@ -24,6 +24,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import BookSearchResultItem from './BookSearchResultItem';
 
 // Recommended manga for empty state
 const RECOMMENDED_MANGA = [
@@ -1499,49 +1500,14 @@ export default function Home() {
                   <p className="text-gray-400">検索結果がありません</p>
                 </div>
               ) : (
-                filteredManga.map((manga) => {
-                  const isSelected = selectedBooks.some(b => b.manga.id === manga.id);
-                  const [imageError, setImageError] = React.useState(false);
-                  const hasValidImage = manga.coverUrl && !imageError;
-
-                  return (
-                    <div
-                      key={manga.id}
-                      onClick={() => openDrawer(manga)}
-                      className="group cursor-pointer"
-                    >
-                      <div
-                        className={`book-card aspect-[2/3] bg-gradient-to-br ${manga.coverColor} rounded-xl shadow-lg mb-2 relative overflow-hidden ${isSelected ? 'book-selected' : ''}`}
-                      >
-                        {hasValidImage ? (
-                          <img
-                            src={manga.coverUrl}
-                            alt={manga.title}
-                            className="w-full h-full object-cover"
-                            onError={() => setImageError(true)}
-                          />
-                        ) : (
-                          /* Fallback title display when no image or image fails */
-                          <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
-                            <h3 className="text-white font-black text-sm drop-shadow-lg" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                              {manga.title}
-                            </h3>
-                          </div>
-                        )}
-                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
-                          全{manga.totalVolumes}巻
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-1 left-1 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold z-10">
-                            ✓ 選択中
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs font-medium text-gray-600 truncate">{manga.title}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{manga.author}</p>
-                    </div>
-                  );
-                })
+                filteredManga.map((manga) => (
+                  <BookSearchResultItem
+                    key={manga.id}
+                    manga={manga}
+                    isSelected={selectedBooks.some(b => b.manga.id === manga.id)}
+                    onClick={openDrawer}
+                  />
+                ))
               )}
             </div >
           </section >

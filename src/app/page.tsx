@@ -517,7 +517,9 @@ export default function Home() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-  // Fetch initial popular manga on page load
+  // Disabled: Fetch initial popular manga on page load
+  // We now show MOCK_MANGA_DATA initially for faster load and no API errors
+  /*
   const fetchInitialData = async () => {
     try {
       setIsSearching(true);
@@ -544,10 +546,10 @@ export default function Home() {
       // Consolidate volumes and set results
       const consolidated = consolidateToFirstVolume(allResults);
       setApiSearchResults(consolidated);
-
+      
       // Clear any previously selected books from mock data
       setSelectedBooks([]);
-
+      
       setInitialLoadComplete(true);
     } catch (error) {
       console.error('Initial data fetch error:', error);
@@ -561,6 +563,7 @@ export default function Home() {
   React.useEffect(() => {
     fetchInitialData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  */
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -703,10 +706,10 @@ export default function Home() {
     window.open(twitterUrl, '_blank');
   };
 
-  // Filter manga - always use API results
+  // Filter manga - use MOCK_MANGA_DATA when not searching, API results when searching
   const filteredManga = (() => {
-    // If we have API results, use them (both from search and initial load)
-    if (apiSearchResults.length > 0) {
+    // If user is actively searching, use API results
+    if (searchQuery.trim() && apiSearchResults.length > 0) {
       // Apply genre and publisher filters
       let filtered = apiSearchResults;
 
@@ -721,8 +724,14 @@ export default function Home() {
       return filtered;
     }
 
-    // Show empty state while loading
-    return [];
+    // Otherwise, show MOCK_MANGA_DATA with filters applied
+    const basicFiltered = MOCK_MANGA_DATA.filter(manga => {
+      const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
+      const matchesPublisher = currentPublisher === 'all' || manga.publisher?.includes(currentPublisher);
+      return matchesGenre && matchesPublisher;
+    });
+
+    return consolidateToFirstVolume(basicFiltered);
   })();
 
   // API search function

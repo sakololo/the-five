@@ -841,38 +841,54 @@ export default function Home() {
           // Fall through to download
         }
       }
-
-      // Fallback: download
-      const dataUrl = await htmlToImage.toPng(card, {
-        quality: 1,
-        pixelRatio: 3,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
-        skipFonts: true,
-      });
-      const link = document.createElement('a');
-      link.download = file.name;
-      link.href = dataUrl;
-      link.click();
-      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
-    } catch (error) {
-      console.error('Image save error:', error);
-      // Retry with lower quality
-      try {
+      // Fallback for iOS: Open image in new tab for long-press save
+      if (isIOS) {
+        // Convert blob to data URL and open in new tab
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          const newTab = window.open();
+          if (newTab) {
+            newTab.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>鑑定書を保存</title>
+                <style>
+                  body { margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; font-family: -apple-system, sans-serif; }
+                  img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                  p { color: #666; text-align: center; margin-top: 20px; font-size: 14px; }
+                </style>
+              </head>
+              <body>
+                <img src="${dataUrl}" alt="鑑定書" />
+                <p>📱 画像を長押しして「写真に保存」を選択してください</p>
+              </body>
+              </html>
+            `);
+            newTab.document.close();
+          }
+        };
+        reader.readAsDataURL(blob);
+        showToastMessage('画像を開きました。長押しで保存できます！');
+      } else {
+        // Non-iOS: regular download
         const dataUrl = await htmlToImage.toPng(card, {
-          quality: 0.95,
-          pixelRatio: 2,
+          quality: 1,
+          pixelRatio: 3,
           backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
           skipFonts: true,
         });
         const link = document.createElement('a');
-        link.download = `the-five-${mode}-${Date.now()}.png`;
+        link.download = file.name;
         link.href = dataUrl;
         link.click();
-        showToastMessage('画像を保存しました！');
-      } catch (retryError) {
-        console.error('Retry failed:', retryError);
-        showToastMessage('画像の保存に失敗しました。スクリーンショットをご利用ください。');
+        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
       }
+    } catch (error) {
+      console.error('Image save error:', error);
+      showToastMessage('画像の作成に失敗しました。もう一度お試しください。');
     }
   };
 
@@ -961,20 +977,54 @@ export default function Home() {
         }
       }
 
-      // Fallback: download
-      const dataUrl = await htmlToImage.toPng(card, {
-        quality: 1,
-        pixelRatio: 2,
-        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
-      });
-      const link = document.createElement('a');
-      link.download = file.name;
-      link.href = dataUrl;
-      link.click();
-      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
+      // Fallback for iOS: Open image in new tab for long-press save
+      if (isIOS) {
+        // Convert blob to data URL and open in new tab
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          // Open in new tab - user can long-press to save
+          const newTab = window.open();
+          if (newTab) {
+            newTab.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>本棚画像を保存</title>
+                <style>
+                  body { margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; font-family: -apple-system, sans-serif; }
+                  img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                  p { color: #666; text-align: center; margin-top: 20px; font-size: 14px; }
+                </style>
+              </head>
+              <body>
+                <img src="${dataUrl}" alt="本棚画像" />
+                <p>📱 画像を長押しして「写真に保存」を選択してください</p>
+              </body>
+              </html>
+            `);
+            newTab.document.close();
+          }
+        };
+        reader.readAsDataURL(blob);
+        showToastMessage('画像を開きました。長押しで保存できます！');
+      } else {
+        // Non-iOS: regular download
+        const dataUrl = await htmlToImage.toPng(card, {
+          quality: 1,
+          pixelRatio: 2,
+          backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
+        });
+        const link = document.createElement('a');
+        link.download = file.name;
+        link.href = dataUrl;
+        link.click();
+        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
+      }
     } catch (error) {
       console.error('Image save error:', error);
-      showToastMessage('画像の保存に失敗しました。スクリーンショットをご利用ください。');
+      showToastMessage('画像の作成に失敗しました。もう一度お試しください。');
     }
   };
 

@@ -3,7 +3,7 @@
 // AI機能の有効/無効フラグ
 const IS_AI_ENABLED = false;
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import * as htmlToImage from 'html-to-image';
 import {
@@ -134,11 +134,23 @@ interface AppraisalResult {
 // 巻数検知ユーティリティ
 // ========================================
 
+// 特別版を示すキーワード（これらを含む場合は別タイトルとして扱う）
+const SPECIAL_EDITION_KEYWORDS = [
+  '完全版',
+  '愛蔵版',
+  '新装版',
+  '文庫版',
+  '豪華版',
+  'ワイド版',
+  'デラックス版',
+];
+
 // 巻数を検出する正規表現パターン
 const VOLUME_PATTERNS = [
   /第(\d+)巻/,           // 第1巻
   /(\d+)巻/,             // 1巻
-  /\((\d+)\)/,           // (1)
+  /\((\d+)\)/,           // (1) 半角括弧
+  /（(\d+)）/,           // （1） 全角括弧
   /vol\.?\s*(\d+)/i,     // vol.1, Vol 1
   /\s(\d+)$/,            // タイトル末尾の数字
 ];
@@ -155,10 +167,16 @@ function extractVolumeNumber(title: string): number | null {
 // ベースタイトル（巻数を除外した部分）を取得
 function getBaseTitle(title: string): string {
   let base = title;
+  // 巻数パターンを除去
   for (const pattern of VOLUME_PATTERNS) {
     base = base.replace(pattern, '').trim();
   }
   return base;
+}
+
+// タイトルが特別版かどうかをチェック
+function isSpecialEdition(title: string): boolean {
+  return SPECIAL_EDITION_KEYWORDS.some(keyword => title.includes(keyword));
 }
 
 // 検索結果を1巻に集約（同じベースタイトルの中で最も若い巻数のみを残す）
@@ -168,14 +186,19 @@ function consolidateToFirstVolume(manga: Book[]): Book[] {
   for (const book of manga) {
     const baseTitle = getBaseTitle(book.title);
     const volumeNum = extractVolumeNumber(book.title) ?? 1;
+    const isSpecial = isSpecialEdition(book.title);
 
-    const existing = titleMap.get(baseTitle);
+    // 特別版の場合は、ベースタイトルに特別版情報を含めて別タイトルとして扱う
+    const mapKey = isSpecial ? book.title : baseTitle;
+
+    const existing = titleMap.get(mapKey);
     if (!existing) {
-      titleMap.set(baseTitle, book);
+      titleMap.set(mapKey, book);
     } else {
       const existingVolume = extractVolumeNumber(existing.title) ?? 1;
-      if (volumeNum < existingVolume) {
-        titleMap.set(baseTitle, book);
+      // 通常版同士の場合のみ、最小巻数を優先
+      if (!isSpecial && volumeNum < existingVolume) {
+        titleMap.set(mapKey, book);
       }
     }
   }
@@ -1156,10 +1179,10 @@ export default function Home() {
             {/* Mode Toggle - テーマ選択 */}
             <div className="flex flex-col items-center gap-2 mt-10">
               <p className="text-sm font-medium text-gray-400">背景テーマを選択</p>
-              <div className="glass-card flex rounded-full p-2 gap-1 w-full max-w-[320px]">
+              <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[360px]">
                 <button
                   onClick={() => setMode('gallery')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all text-center ${mode === 'gallery'
+                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all text-center ${mode === 'gallery'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1168,7 +1191,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setMode('magazine')}
-                  className={`flex-1 py-3 rounded-full text-sm font-medium transition-all text-center ${mode === 'magazine'
+                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all text-center ${mode === 'magazine'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1181,10 +1204,10 @@ export default function Home() {
             {/* Category Selection - 本棚タイトル選択 */}
             <div className="flex flex-col items-center gap-2 mt-6">
               <p className="text-sm font-medium text-gray-400">本棚のタイトル</p>
-              <div className="glass-card flex rounded-full p-2 gap-1 w-full max-w-[320px]">
+              <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
                 <button
                   onClick={() => setCategory('identity')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
+                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'identity'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1193,7 +1216,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setCategory('recommend')}
-                  className={`flex-1 py-3 px-2 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
+                  className={`flex-1 py-3 px-4 rounded-full text-sm font-medium transition-all whitespace-nowrap text-center ${category === 'recommend'
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
@@ -1660,8 +1683,8 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 64, paddingRight: 64 }}>
                   {selectedBooks.map((book) => (
-                    <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    <div key={`card-${book.manga.id}-${book.volume}`} style={{ width: 112, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
                     </div>
                   ))}
                 </div>
@@ -1691,8 +1714,8 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, paddingLeft: 80, paddingRight: 80 }}>
                   {selectedBooks.map((book) => (
-                    <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    <div key={`simple-${book.manga.id}-${book.volume}`} style={{ width: 128, height: 192, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', backgroundColor: 'white' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
                     </div>
                   ))}
                 </div>
@@ -1736,8 +1759,8 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingLeft: 48, paddingRight: 48 }}>
                   {selectedBooks.map((book) => (
-                    <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    <div key={`direct-mag-${book.manga.id}-${book.volume}`} style={{ width: 120, height: 176, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.3)', backgroundColor: 'white' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
                     </div>
                   ))}
                 </div>
@@ -1768,8 +1791,8 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 28, paddingLeft: 48, paddingRight: 48 }}>
                   {selectedBooks.map((book) => (
-                    <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}>
-                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    <div key={`direct-min-${book.manga.id}-${book.volume}`} style={{ width: 130, height: 195, borderRadius: 6, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', backgroundColor: 'white' }}>
+                      <img src={book.manga.coverUrl} alt={book.manga.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }} crossOrigin="anonymous" />
                     </div>
                   ))}
                 </div>

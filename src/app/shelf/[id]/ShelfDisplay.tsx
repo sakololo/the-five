@@ -59,7 +59,7 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                                 <img
                                     src={book.coverUrl}
                                     alt={`${book.title} ${book.volume}巻`}
-                                    className="w-full h-full object-contain p-1"
+                                    className="w-full h-full object-contain p-0.5"
                                 />
                             </a>
                         );

@@ -773,7 +773,7 @@ export default function Home() {
     setTimeout(() => setShowDetails(true), 500);
   };
 
-  // Save image based on current mode with Web Share API support
+  // Save image based on current mode with Web Share API support (iOS Safari optimized)
   const saveImage = async () => {
     const cardId = mode === 'magazine' ? 'share-card-full' : 'share-card-simple';
     const card = document.getElementById(cardId);
@@ -782,7 +782,8 @@ export default function Home() {
     showToastMessage('鑑定書を作成中...');
 
     try {
-      const dataUrl = await htmlToImage.toPng(card, {
+      // Use toBlob for better iOS compatibility
+      const blob = await htmlToImage.toBlob(card, {
         quality: 1,
         pixelRatio: 3,
         backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
@@ -795,38 +796,64 @@ export default function Home() {
         },
       });
 
-      // Convert dataUrl to Blob
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
+      if (!blob) {
+        throw new Error('Failed to generate image');
+      }
+
+      // Create File object explicitly
       const file = new File([blob], `the-five-${mode}-${Date.now()}.png`, { type: 'image/png' });
 
-      // Check Web Share API support
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Detect iOS/iPadOS
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // For iOS, force try navigator.share with files only (no title/text)
+      if (isIOS && navigator.share) {
         try {
           await navigator.share({
             files: [file],
-            title: 'THE FIVE - 私の5冊',
-            text: appraisalResult ? `二つ名『${appraisalResult.soulTitle}』` : '私の５冊',
           });
           showToastMessage('共有メニューを開きました！');
+          return; // Success, exit early
         } catch (shareError) {
-          // User cancelled or share failed, fallback to download
-          if ((shareError as Error).name !== 'AbortError') {
-            const link = document.createElement('a');
-            link.download = file.name;
-            link.href = dataUrl;
-            link.click();
-            showToastMessage('画像を保存しました！');
+          const error = shareError as Error;
+          // User cancelled - do nothing
+          if (error.name === 'AbortError') {
+            return;
           }
+          // Share failed, fall through to download
+          console.warn('iOS share failed:', error);
         }
-      } else {
-        // Fallback: download
-        const link = document.createElement('a');
-        link.download = file.name;
-        link.href = dataUrl;
-        link.click();
-        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
       }
+
+      // For non-iOS or if iOS share failed, try standard Web Share API
+      if (!isIOS && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+          });
+          showToastMessage('共有メニューを開きました！');
+          return; // Success, exit early
+        } catch (shareError) {
+          const error = shareError as Error;
+          if (error.name === 'AbortError') {
+            return;
+          }
+          // Fall through to download
+        }
+      }
+
+      // Fallback: download
+      const dataUrl = await htmlToImage.toPng(card, {
+        quality: 1,
+        pixelRatio: 3,
+        backgroundColor: mode === 'gallery' ? '#FAF9F6' : '#1a1a2e',
+        skipFonts: true,
+      });
+      const link = document.createElement('a');
+      link.download = file.name;
+      link.href = dataUrl;
+      link.click();
+      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
     } catch (error) {
       console.error('Image save error:', error);
       // Retry with lower quality
@@ -849,7 +876,7 @@ export default function Home() {
     }
   };
 
-  // AI無効モード用: モーダルなしで直接画像を保存
+  // AI無効モード用: モーダルなしで直接画像を保存 (iOS Safari optimized)
   const saveImageDirectly = async () => {
     if (selectedBooks.length !== 5) return;
 
@@ -874,7 +901,8 @@ export default function Home() {
 
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const dataUrl = await htmlToImage.toPng(card, {
+      // Use toBlob for better iOS compatibility
+      const blob = await htmlToImage.toBlob(card, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
@@ -887,36 +915,63 @@ export default function Home() {
       card.style.left = originalStyles.left;
       card.style.zIndex = originalStyles.zIndex;
 
-      // Convert dataUrl to Blob
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
+      if (!blob) {
+        throw new Error('Failed to generate image');
+      }
+
+      // Create File object explicitly
       const file = new File([blob], `my-best-five-${mode}-${Date.now()}.png`, { type: 'image/png' });
 
-      // Check Web Share API support
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Detect iOS/iPadOS
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // For iOS, force try navigator.share with files only (no title/text)
+      if (isIOS && navigator.share) {
         try {
           await navigator.share({
             files: [file],
-            title: category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊',
-            text: category === 'recommend' ? '今読んでほしい、5冊。' : '今のあなたの、５冊',
           });
           showToastMessage('共有メニューを開きました！');
+          return; // Success, exit early
         } catch (shareError) {
-          if ((shareError as Error).name !== 'AbortError') {
-            const link = document.createElement('a');
-            link.download = file.name;
-            link.href = dataUrl;
-            link.click();
-            showToastMessage('画像を保存しました！');
+          const error = shareError as Error;
+          // User cancelled - do nothing
+          if (error.name === 'AbortError') {
+            return;
           }
+          // Share failed, fall through to download
+          console.warn('iOS share failed:', error);
         }
-      } else {
-        const link = document.createElement('a');
-        link.download = file.name;
-        link.href = dataUrl;
-        link.click();
-        showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
       }
+
+      // For non-iOS or if iOS share failed, try standard Web Share API
+      if (!isIOS && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+          });
+          showToastMessage('共有メニューを開きました！');
+          return; // Success, exit early
+        } catch (shareError) {
+          const error = shareError as Error;
+          if (error.name === 'AbortError') {
+            return;
+          }
+          // Fall through to download
+        }
+      }
+
+      // Fallback: download
+      const dataUrl = await htmlToImage.toPng(card, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: mode === 'gallery' ? '#FAF9F6' : undefined,
+      });
+      const link = document.createElement('a');
+      link.download = file.name;
+      link.href = dataUrl;
+      link.click();
+      showToastMessage('画像を保存しました！Xに添付してシェアしよう！');
     } catch (error) {
       console.error('Image save error:', error);
       showToastMessage('画像の保存に失敗しました。スクリーンショットをご利用ください。');

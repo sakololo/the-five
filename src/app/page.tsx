@@ -1105,7 +1105,7 @@ export default function Home() {
                 <button
                   onClick={() => setMode('gallery')}
                   className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'gallery'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
+                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -1114,7 +1114,7 @@ export default function Home() {
                 <button
                   onClick={() => setMode('magazine')}
                   className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'magazine'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
+                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -1130,7 +1130,7 @@ export default function Home() {
                 <button
                   onClick={() => setCategory('identity')}
                   className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${category === 'identity'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
+                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -1139,7 +1139,7 @@ export default function Home() {
                 <button
                   onClick={() => setCategory('recommend')}
                   className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${category === 'recommend'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300 font-bold'
+                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
                     : 'bg-white/50 text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -1355,8 +1355,8 @@ export default function Home() {
                           document.getElementById('search-results')?.scrollIntoView({ behavior: 'smooth' });
                         }
                       }}
-                      placeholder="タイトルや作者名を入力（例：ワンピ、スラダン）"
-                      className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 text-base"
+                      placeholder="タイトルや作者名で検索"
+                      className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 placeholder:text-xs sm:placeholder:text-base text-base"
                     />
                     {searchQuery && (
                       <button
@@ -1714,7 +1714,6 @@ export default function Home() {
           }`}
       >
         <div className="glass-card px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-          <span className="text-2xl">✅</span>
           <p className="font-medium text-gray-800">{toastMessage}</p>
         </div>
       </div>

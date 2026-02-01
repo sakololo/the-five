@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Disable Next.js caching for this dynamic API route
+export const dynamic = 'force-dynamic';
+
 // Simple in-memory rate limiter
 const requestCounts = new Map<string, { count: number; timestamp: number }>();
 const RATE_LIMIT = 10; // requests per minute
@@ -152,7 +155,7 @@ async function fetchIsbnFromGoogle(query: string): Promise<string | null> {
 
   try {
     const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1&key=${googleApiKey}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: 'no-store' });
 
     if (!response.ok) {
       console.warn(`Google Books API error: ${response.status}`);
@@ -194,36 +197,75 @@ async function fetchIsbnFromGoogle(query: string): Promise<string | null> {
   }
 }
 
-// Fetch books from Rakuten API by keyword
+// Fetch books from Rakuten API by title (with keyword fallback)
 async function fetchBooksByKeyword(
   appId: string,
   query: string
 ): Promise<Record<string, unknown>[]> {
-  const params = new URLSearchParams({
+  // First try title search (more accurate)
+  const titleParams = new URLSearchParams({
     applicationId: appId,
     format: 'json',
     hits: '20',
-    sort: 'standard',
+    sort: 'sales', // 売上順（人気順）
     booksGenreId: '001001', // コミック
     outOfStockFlag: '1', // 在庫切れも含む
+    title: query,
+  });
+
+  const titleUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${titleParams.toString()}`;
+
+  const titleResponse = await fetch(titleUrl, {
+    headers: { 'Accept': 'application/json' },
+    cache: 'no-store',
+  });
+
+  if (titleResponse.ok) {
+    const data = await titleResponse.json();
+    const items = data.Items || [];
+
+    if (items.length > 0) {
+      return items;
+    }
+  }
+
+  // Fallback to keyword search if title search finds nothing
+
+  const keywordParams = new URLSearchParams({
+    applicationId: appId,
+    format: 'json',
+    hits: '20',
+    sort: 'sales',
+    booksGenreId: '001001',
+    outOfStockFlag: '1',
     keyword: query,
   });
 
-  const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
+  const keywordUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${keywordParams.toString()}`;
 
-  const response = await fetch(apiUrl, {
-    headers: {
-      'Accept': 'application/json',
-    },
+  const keywordResponse = await fetch(keywordUrl, {
+    headers: { 'Accept': 'application/json' },
+    cache: 'no-store',
   });
 
-  if (!response.ok) {
-    console.error(`Rakuten API keyword search error: ${response.status}`);
+  if (!keywordResponse.ok) {
+    console.error(`Rakuten API keyword search error: ${keywordResponse.status}`);
     return [];
   }
 
-  const data = await response.json();
-  return data.Items || [];
+  const data = await keywordResponse.json();
+  const items = data.Items || [];
+
+  // Filter keyword results to only include items where query appears in title
+  // This prevents unrelated results like "ONE PIECE" appearing for "もやしもん" search
+  const queryPrefix = query.slice(0, 2).toLowerCase();
+  const filteredItems = items.filter((item: Record<string, unknown>) => {
+    const bookItem = item.Item as Record<string, unknown>;
+    const title = String(bookItem?.title || '').toLowerCase();
+    return title.includes(queryPrefix) || title.includes(query.toLowerCase());
+  });
+
+  return filteredItems;
 }
 
 // Fetch books from Rakuten API by ISBN
@@ -243,6 +285,7 @@ async function fetchBooksByIsbn(
     headers: {
       'Accept': 'application/json',
     },
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -251,7 +294,9 @@ async function fetchBooksByIsbn(
   }
 
   const data = await response.json();
-  return data.Items || [];
+  const items = data.Items || [];
+  console.log(`[DEBUG] ISBN search for "${isbn}" found ${items.length} items, first: "${items[0]?.Item?.title || 'none'}"`);
+  return items;
 }
 
 // Legacy function for backward compatibility (title/author search)
@@ -276,6 +321,7 @@ async function fetchBooks(
     headers: {
       'Accept': 'application/json',
     },
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -399,6 +445,7 @@ export async function GET(request: NextRequest) {
   try {
     // Normalize the query
     const normalizedQuery = normalizeQuery(query);
+    const originalQuery = query.trim();
 
     // Step 1: Try to get ISBN from Google Books API (for better accuracy)
     const targetIsbn = await fetchIsbnFromGoogle(normalizedQuery);
@@ -413,13 +460,22 @@ export async function GET(request: NextRequest) {
       searchPromises.push(Promise.resolve([]));
     }
 
-    // Request B: Keyword search (always execute)
+    // Request B: Title/keyword search with normalized query
     searchPromises.push(fetchBooksByKeyword(appId, normalizedQuery));
 
-    const [isbnResults, keywordResults] = await Promise.all(searchPromises);
+    // Request C: Also search with original query if different from normalized
+    // This handles cases where hiragana matches better than katakana
+    if (originalQuery !== normalizedQuery && !MANGA_ALIASES[originalQuery]) {
+      searchPromises.push(fetchBooksByKeyword(appId, originalQuery));
+    } else {
+      searchPromises.push(Promise.resolve([]));
+    }
 
-    // Step 3: Combine results (ISBN match first, then keyword results)
-    const allItems = [...isbnResults, ...keywordResults];
+    const results = await Promise.all(searchPromises);
+    const [isbnResults, normalizedResults, originalResults] = results;
+
+    // Step 3: Combine results (ISBN match first, then normalized, then original)
+    const allItems = [...isbnResults, ...normalizedResults, ...originalResults];
 
     // Transform and deduplicate
     const books = transformBooks(allItems);

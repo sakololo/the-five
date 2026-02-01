@@ -1718,7 +1718,7 @@ export default function Home() {
                   <p>
                     お問い合わせは、
                     <a
-                      href="https://twitter.com/messages/compose?recipient_id=antigravity_dev"
+                      href="https://x.com/flj9r"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"

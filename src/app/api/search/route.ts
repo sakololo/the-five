@@ -80,6 +80,8 @@ const MANGA_ALIASES: Record<string, string> = {
   'ウィンドブレイカー': 'WIND BREAKER',
   '防風': 'WIND BREAKER',
   'めだリスト': 'メダリスト',
+  'もやしもん': 'もやしもん＋',
+  'モヤシモン': 'もやしもん＋',
 };
 
 function checkRateLimit(ip: string): boolean {

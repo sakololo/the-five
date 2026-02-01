@@ -912,9 +912,49 @@ export default function Home() {
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
       const shelfUrl = `${siteUrl}/shelf/${shelfId}`;
 
-      // Create X share URL with category-specific text
-      const shareTitle = category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊';
-      const shareText = encodeURIComponent(`${shareTitle} #THEFIVE`);
+      // Generate smart share text with book titles
+      const MAX_TWITTER_LENGTH = 140;
+      const URL_RESERVED_LENGTH = 23; // t.co shortened URL length
+      const BUFFER = 5; // Safety buffer
+
+      // Prepare book titles (trim long titles to 15 chars)
+      const bookTitles = selectedBooks.map(book => {
+        const title = book.manga.title;
+        return title.length > 15 ? title.substring(0, 15) + '...' : title;
+      });
+
+      // Create header based on category
+      const header = category === 'recommend'
+        ? '私の『今読んでほしい5冊』を選びました。\n\n'
+        : '私の『私を形作る5冊』を選びました。\n\n';
+
+      // Footer with hashtag
+      const footer = '\n\n#THE_FIVE';
+
+      // Calculate available length for book list
+      const availableLength = MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - header.length - footer.length - BUFFER;
+
+      // Try to fit all books, otherwise reduce
+      let bookListText = '';
+      let finalText = '';
+
+      // Pattern A: All 5 books
+      const fullList = bookTitles.map(t => `・${t}`).join('\n');
+      if ((header + fullList + footer).length <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
+        bookListText = fullList;
+      }
+      // Pattern B: 4 books + "ほか1冊"
+      else if ((header + bookTitles.slice(0, 4).map(t => `・${t}`).join('\n') + '\n・ほか1冊' + footer).length <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
+        bookListText = bookTitles.slice(0, 4).map(t => `・${t}`).join('\n') + '\n・ほか1冊';
+      }
+      // Pattern C: 3 books + "ほか2冊"
+      else {
+        bookListText = bookTitles.slice(0, 3).map(t => `・${t}`).join('\n') + '\n・ほか2冊';
+      }
+
+      finalText = header + bookListText + footer;
+
+      const shareText = encodeURIComponent(finalText);
       const encodedUrl = encodeURIComponent(shelfUrl);
 
       // Detect mobile and try to open X app directly
@@ -947,7 +987,7 @@ export default function Home() {
         window.open(xUrl, '_blank');
       }
 
-      showToastMessage('本棚を保存しました！Xで共有できます');
+      // Toast message removed - no actual shelf save feature
     } catch (error) {
       console.error('Share error:', error);
       alert('保存中にエラーが発生しました。もう一度お試しください。');

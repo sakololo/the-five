@@ -34,16 +34,16 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
             {/* Content - Books Only (Title moved to page) */}
             <div className="relative z-10 h-full flex flex-col justify-center items-center p-6 md:p-8">
                 {/* Books */}
-                <div className="flex justify-center items-end gap-4 md:gap-6 px-4">
+                <div className="flex justify-center items-end gap-3 md:gap-6 px-2 md:px-4">
                     {shelf.books.map((book, index) => {
                         const isFeatured = index === 2;
-                        // 書籍らしいアスペクト比 (約2:3)
+                        // 書籍らしいアスペクト比 (約2:3) - モバイル対応サイズ
                         const size = isFeatured
-                            ? 'w-28 md:w-40'
-                            : 'w-20 md:w-32';
+                            ? 'w-20 sm:w-28 md:w-40'
+                            : 'w-16 sm:w-20 md:w-32';
                         const height = isFeatured
-                            ? 'h-40 md:h-56'
-                            : 'h-30 md:h-44';
+                            ? 'h-28 sm:h-40 md:h-56'
+                            : 'h-22 sm:h-30 md:h-44';
 
                         return (
                             <a

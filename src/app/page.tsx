@@ -713,8 +713,8 @@ export default function Home() {
 
   // Filter manga - use MOCK_MANGA_DATA when not searching, API results when searching
   const filteredManga = (() => {
-    // If user is actively searching, use API results
-    if (searchQuery.trim() && apiSearchResults.length > 0) {
+    // If user is actively searching, use API results (even if empty)
+    if (searchQuery.trim()) {
       // Apply genre and publisher filters
       let filtered = apiSearchResults;
 
@@ -1450,7 +1450,34 @@ export default function Home() {
                 </div>
               ) : filteredManga.length === 0 ? (
                 <div className="col-span-full text-center py-12">
-                  <p className="text-gray-400">検索結果がありません</p>
+                  {searchQuery.trim() ? (
+                    <>
+                      <p className="text-gray-600 text-base">
+                        「{searchQuery}」が見つかりませんでした
+                      </p>
+                      {searchError ? (
+                        <>
+                          <p className="text-gray-500 text-sm mt-2">
+                            検索中にエラーが発生しました。
+                          </p>
+                          <p className="text-gray-400 text-sm mt-1">
+                            時間をおいて再度お試しください。
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-gray-400 text-sm mt-2">
+                          別のキーワードでお試しください。
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 text-base">検索結果がありません</p>
+                      <p className="text-gray-400 text-sm mt-2">
+                        キーワードを入力して検索してください。
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 filteredManga.map((manga) => (

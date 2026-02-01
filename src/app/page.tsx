@@ -974,8 +974,8 @@ export default function Home() {
 
       // Create header based on category
       const header = category === 'recommend'
-        ? '私の『今読んでほしい5冊』を選びました。\n\n'
-        : '私の『私を形作る5冊』を選びました。\n\n';
+        ? '『今読んでほしい5冊』を選びました。\n\n'
+        : '『私を形作る5冊』を選びました。\n\n';
 
       // Footer with hashtag
       const footer = '\n\n#THE_FIVE';
@@ -1317,7 +1317,7 @@ export default function Home() {
                         }`}
                     >
                       <span className="text-2xl">𝕏</span>
-                      <span>{isSaving ? '保存中...' : '結果をシェア'}</span>
+                      <span>{isSaving ? '保存中...' : 'で結果をシェア'}</span>
                     </button>
                   </div>
                 )}

@@ -5,6 +5,7 @@ const IS_AI_ENABLED = false;
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import popularMangaData from '@/data/popular-manga.json';
 
 import {
   DndContext,
@@ -724,14 +725,14 @@ export default function Home() {
       return filtered;
     }
 
-    // Otherwise, show MOCK_MANGA_DATA with filters applied
-    const basicFiltered = MOCK_MANGA_DATA.filter(manga => {
+    // Otherwise, show popular manga data with real book covers from Rakuten API
+    const basicFiltered = (popularMangaData as any[]).filter((manga: any) => {
       const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
       const matchesPublisher = currentPublisher === 'all' || manga.publisher?.includes(currentPublisher);
       return matchesGenre && matchesPublisher;
     });
 
-    return consolidateToFirstVolume(basicFiltered);
+    return basicFiltered;
   })();
 
   // API search function
@@ -1327,7 +1328,7 @@ export default function Home() {
                 <div className="mt-6 pt-4 border-t border-gray-200/50">
                   <p className="text-xs font-medium text-gray-500 mb-3">みんなが選んでいる作品</p>
                   <div className="flex flex-wrap gap-2">
-                    {MOCK_MANGA_DATA.slice(0, 8).map((manga, i) => (
+                    {(popularMangaData as any[]).slice(0, 8).map((manga: any, i) => (
                       <button
                         key={i}
                         onClick={() => setSearchQuery(manga.title)}

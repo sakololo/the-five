@@ -6,6 +6,7 @@ const IS_AI_ENABLED = false;
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import popularMangaData from '@/data/popular-manga.json';
+import { ONE_PIECE_VOLUMES, isOnePiece, getOnePieceCoverUrl } from '@/data/onepiece-volumes';
 
 import {
   DndContext,
@@ -799,6 +800,29 @@ export default function Home() {
     setLoadingVolumes(true);
     try {
       const baseTitle = getBaseTitle(manga.title);
+
+      // ワンピースの場合はハードコードデータを優先使用
+      if (isOnePiece(baseTitle)) {
+        const onePieceBooks: Book[] = ONE_PIECE_VOLUMES.map(v => ({
+          id: v.isbn,
+          title: v.title,
+          reading: 'わんぴーす',
+          author: '尾田栄一郎',
+          coverUrl: v.coverUrl,
+          genre: '少年コミック',
+          totalVolumes: 110,
+          coverColor: 'from-red-400 to-orange-500',
+          itemUrl: `https://books.rakuten.co.jp/rb/${v.isbn}/`,
+        }));
+
+        setVolumeData(prev => ({
+          ...prev,
+          [manga.id]: onePieceBooks
+        }));
+        setLoadingVolumes(false);
+        return;
+      }
+
       const response = await fetch(`/api/search?q=${encodeURIComponent(baseTitle)}`);
 
       if (!response.ok) {

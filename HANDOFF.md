@@ -23,7 +23,10 @@
 
 ## 3. 現在の実装状況
 ### 検索API (`/src/app/api/search/route.ts`)
-- **ロジック**: 楽天APIから取得し、タイトル/著者検索を並列で実行。
+- **ロジック**: **ハイブリッド検索**（Google Books API + Rakuten Books API）。
+  1. **Google Books API**: クエリのISBNを特定（表記揺れに強い）。
+  2. **Rakuten Books API**: 取得したISBNでの指名検索（Request A）と、従来のキーワード検索（Request B）を並列実行。
+  3. **結果統合**: ISBN一致の結果を最優先（先頭）に配置し、重複を除去。
 - **機能**:
   - **マンガ別名辞書**: 一般的な略称を正式名称に変換する辞書（例: "ワンピ" -> "ONE PIECE"）。
   - **レート制限**: 簡易的なインメモリ制限（IPごとに1分間10リクエスト）。
@@ -62,11 +65,17 @@
 - **対応**: 正しい `Legacy anon key` (JWT形式) に差し替え、ローカルでの動作は正常化しました。
 - **【重要】次のステップ**: 本番環境（Vercel）の環境変数も同様に正しい `anon` キーに更新する必要があります。これが完了するまで本番では検索ログ保存（または検索処理自体）が失敗する可能性があります。
 
+**解決済み**: 検索精度（「もやしもん」が出ない問題）。
+- **原因**: 楽天APIのタイトル検索が厳密すぎたため。
+- **対応**: Google Books APIと連携させたハイブリッド検索に変更（ISBNで特定してから楽天APIを叩く）。
+- **確認**: サーバーログで `Google Books found ISBN-13: ...` を確認済み。
+
 ## 5. 必要な環境変数
 次のエージェントは `.env.local` に以下の変数を設定する必要があります：
 ```
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 RAKUTEN_APP_ID=your_rakuten_app_id
+GOOGLE_BOOKS_API_KEY=your_google_books_api_key  <-- 【重要】これが必須になりました！
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```

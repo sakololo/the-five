@@ -100,7 +100,7 @@ export default async function ShelfPage({ params }: PageProps) {
 
                 {/* Hint */}
                 <p className="text-center text-sm text-gray-500 mt-4">
-                    本の表紙をタップすると、楽天の購入ページへ移動します。
+                    本の表紙をタップすると、<br />楽天の購入ページへ移動します。
                 </p>
 
                 {/* Call to Action */}

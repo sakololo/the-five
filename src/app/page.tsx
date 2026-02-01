@@ -1014,9 +1014,12 @@ export default function Home() {
           <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
             {/* Logo */}
             <div className="text-center">
-              <Link href="/" className="cursor-pointer inline-block">
+              <Link
+                href="/"
+                className="cursor-pointer inline-block touch-manipulation"
+              >
                 <h1
-                  className="text-5xl font-bold tracking-wide"
+                  className="text-5xl font-bold tracking-wide select-none"
                   style={{
                     fontFamily: "'Permanent Marker', cursive",
                     fontStyle: 'italic',

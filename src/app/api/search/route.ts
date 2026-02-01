@@ -151,8 +151,8 @@ async function fetchBooks(
   const params = new URLSearchParams({
     applicationId: appId,
     format: 'json',
-    hits: '30',
-    sort: 'standard',
+    hits: '20',
+    sort: 'sales',
     booksGenreId: '001001', // コミック
   });
 

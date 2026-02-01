@@ -145,17 +145,18 @@ function normalizeQuery(query: string): string {
 // Fetch books from Rakuten API
 async function fetchBooks(
   appId: string,
+  searchType: 'title' | 'author',
   query: string
 ): Promise<Record<string, unknown>[]> {
   const params = new URLSearchParams({
     applicationId: appId,
     format: 'json',
     hits: '30',
-    sort: 'standard', // 関連度順（keywordと組み合わせて最適）
+    sort: 'standard',
     booksGenreId: '001001', // コミック
-    keyword: query, // keywordパラメータで横断的に検索
-    outOfStockFlag: '1', // 在庫切れも含める
   });
+
+  params.append(searchType, query);
 
   const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
 
@@ -287,11 +288,15 @@ export async function GET(request: NextRequest) {
     // Normalize the query
     const normalizedQuery = normalizeQuery(query);
 
-    // Keyword search (searches across title, author, publisher, description)
-    const results = await fetchBooks(appId, normalizedQuery);
+    // Parallel search: title and author
+    const [titleResults, authorResults] = await Promise.all([
+      fetchBooks(appId, 'title', normalizedQuery),
+      fetchBooks(appId, 'author', normalizedQuery),
+    ]);
 
-    // Transform results
-    const books = transformBooks(results);
+    // Merge and deduplicate results
+    const allItems = [...titleResults, ...authorResults];
+    const books = transformBooks(allItems);
 
     // Log if no results found
     if (books.length === 0 && query.trim().length > 0) {

@@ -518,6 +518,10 @@ export default function Home() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
+  // Volume data for drawer (fetched from API when drawer opens)
+  const [volumeData, setVolumeData] = useState<Record<string, Book[]>>({});
+  const [loadingVolumes, setLoadingVolumes] = useState(false);
+
   // Disabled: Fetch initial popular manga on page load
   // We now show MOCK_MANGA_DATA initially for faster load and no API errors
   /*
@@ -722,7 +726,8 @@ export default function Home() {
         filtered = filtered.filter(manga => manga.publisher?.includes(currentPublisher));
       }
 
-      return filtered;
+      // Consolidate to first volume to group same-title books
+      return consolidateToFirstVolume(filtered);
     }
 
     // Otherwise, show popular manga data with real book covers from Rakuten API
@@ -788,10 +793,45 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, performApiSearch]);
 
+  // Fetch volumes for a manga from API (max 30 volumes)
+  const fetchVolumesForManga = async (manga: Book) => {
+    // Skip if already fetched
+    if (volumeData[manga.id]) return;
+
+    setLoadingVolumes(true);
+    try {
+      const baseTitle = getBaseTitle(manga.title);
+      const response = await fetch(`/api/search?q=${encodeURIComponent(baseTitle)}`);
+
+      if (!response.ok) {
+        console.error('Failed to fetch volumes');
+        return;
+      }
+
+      const data = await response.json();
+      const volumes: Book[] = data.books || [];
+
+      // Limit to first 30 volumes (API max)
+      const limitedVolumes = volumes.slice(0, 30);
+
+      setVolumeData(prev => ({
+        ...prev,
+        [manga.id]: limitedVolumes
+      }));
+    } catch (error) {
+      console.error('Error fetching volumes:', error);
+    } finally {
+      setLoadingVolumes(false);
+    }
+  };
+
   // Open drawer for volume selection
-  const openDrawer = (manga: Book) => {
+  const openDrawer = async (manga: Book) => {
     setSelectedManga(manga);
     setDrawerOpen(true);
+
+    // Fetch volume data in background
+    await fetchVolumesForManga(manga);
   };
 
   // Close drawer
@@ -811,7 +851,16 @@ export default function Home() {
         showToastMessage('最大5冊まで選択できます。');
         return;
       }
-      setSelectedBooks(prev => [...prev, { manga, volume }]);
+
+      // Get the correct cover URL for the selected volume from volumeData
+      const volumeBooks = volumeData[manga.id] || [];
+      const selectedVolumeBook = volumeBooks.find(b => extractVolumeNumber(b.title) === volume);
+      const mangaWithCorrectCover = {
+        ...manga,
+        coverUrl: selectedVolumeBook?.coverUrl || manga.coverUrl
+      };
+
+      setSelectedBooks(prev => [...prev, { manga: mangaWithCorrectCover, volume }]);
     }
     closeDrawer();
   };
@@ -1463,7 +1512,11 @@ export default function Home() {
             <>
               {/* Selected Manga Info */}
               <div className="flex items-center gap-4 mb-6">
-                <div className={`w-16 h-24 bg-gradient-to-br ${selectedManga.coverColor} rounded-lg shadow-lg overflow-hidden`}>
+                <div
+                  onClick={() => selectVolume(selectedManga, 1)}
+                  className={`w-16 h-24 bg-gradient-to-br ${selectedManga.coverColor} rounded-lg shadow-lg overflow-hidden cursor-pointer hover:scale-105 hover:ring-2 hover:ring-blue-400 transition-all`}
+                  title="1巻を本棚に追加"
+                >
                   <img src={selectedManga.coverUrl} alt={selectedManga.title} className="w-full h-full object-cover" />
                 </div>
                 <div>
@@ -1476,10 +1529,17 @@ export default function Home() {
               {/* Volume Selector */}
               <div className="mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-3">どの巻を本棚に飾りますか？</p>
+                {loadingVolumes && (
+                  <p className="text-xs text-gray-500 mb-2">巻データを読み込み中...</p>
+                )}
                 <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
                   {Array.from({ length: selectedManga.totalVolumes }, (_, i) => i + 1).map((vol) => {
                     const isSelected = selectedBooks.some(b => b.manga.id === selectedManga.id && b.volume === vol);
-                    const volumeCoverUrl = selectedManga.coverUrlPerVolume?.[vol];
+
+                    // Try to get cover from API-fetched volume data
+                    const volumeBooks = volumeData[selectedManga.id] || [];
+                    const volumeBook = volumeBooks.find(b => extractVolumeNumber(b.title) === vol);
+                    const volumeCoverUrl = volumeBook?.coverUrl;
 
                     return (
                       <div

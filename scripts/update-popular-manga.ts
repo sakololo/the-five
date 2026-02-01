@@ -13,7 +13,7 @@ import * as path from 'path';
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 
 import { createClient } from '@supabase/supabase-js';
-import { FIXED_POPULAR_TITLES } from '../src/data/fixed-popular';
+import { FIXED_POPULAR_TITLES, TOTAL_VOLUMES_MAPPING } from '../src/data/fixed-popular';
 import * as fs from 'fs';
 
 // Types
@@ -154,6 +154,19 @@ async function fetchFromRakuten(title: string): Promise<Book | null> {
             return null;
         }
 
+        // Count total volumes from API response
+        const volumeNumbers = data.Items.map((result: any) => {
+            const item = result.Item;
+            const itemTitle = item.title || '';
+            // Extract volume number from title
+            const volMatch = itemTitle.match(/(\d+)巻/);
+            return volMatch ? parseInt(volMatch[1], 10) : 1;
+        });
+        const maxVolume = Math.max(...volumeNumbers, 1);
+        if (title === 'ワンピース' || title === '鬼滅の刃') {
+            console.log(`    📊 DEBUG "${title}": ${data.Items.length} items, volumes: ${volumeNumbers.slice(0, 5)}, maxVolume = ${maxVolume}`);
+        }
+
         // Find the best match: prioritize series name match
         let bestMatch = null;
 
@@ -194,7 +207,7 @@ async function fetchFromRakuten(title: string): Promise<Book | null> {
             author: item.author || '',
             genre: '漫画',
             publisher: item.publisherName || '',
-            totalVolumes: 1,
+            totalVolumes: TOTAL_VOLUMES_MAPPING[title] || maxVolume,
             coverUrl: item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || '',
         };
     } catch (error) {

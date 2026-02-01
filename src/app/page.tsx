@@ -1450,13 +1450,7 @@ export default function Home() {
                 </div>
               ) : filteredManga.length === 0 ? (
                 <div className="col-span-full text-center py-12">
-                  <p className="text-gray-500 font-medium mb-2">検索結果がありません</p>
-                  <p className="text-gray-400 text-sm">
-                    見つからない場合は、正式タイトルで検索してください
-                  </p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    例: 「ワンピ」ではなく「ONE PIECE」
-                  </p>
+                  <p className="text-gray-400">検索結果がありません</p>
                 </div>
               ) : (
                 filteredManga.map((manga) => (

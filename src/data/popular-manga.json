@@ -1,13 +1,13 @@
 [
   {
-    "id": "rakuten-1769926104504",
-    "title": "ワンピース",
-    "reading": "コイスルワンピース",
-    "author": "伊原 大貴",
-    "genre": "漫画",
+    "id": "9784088725093",
+    "title": "ONE PIECE",
+    "reading": "ワンピース",
+    "author": "尾田栄一郎",
+    "genre": "少年コミック",
     "publisher": "集英社",
-    "totalVolumes": 110,
-    "coverUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/8600/9784088848600_1_15.jpg?_ex=200x200"
+    "totalVolumes": 114,
+    "coverUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/5093/9784088725093_1_2.jpg?_ex=200x200"
   },
   {
     "id": "rakuten-1769926106572",
@@ -112,12 +112,12 @@
   {
     "id": "rakuten-1769926131540",
     "title": "NANA",
-    "reading": "ナルト",
-    "author": "岸本斉史",
-    "genre": "漫画",
+    "reading": "ナナ",
+    "author": "矢沢あい",
+    "genre": "少女コミック",
     "publisher": "集英社",
     "totalVolumes": 21,
-    "coverUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0887/08873259.jpg?_ex=200x200"
+    "coverUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0884/08846040.jpg?_ex=200x200"
   },
   {
     "id": "rakuten-1769926133602",

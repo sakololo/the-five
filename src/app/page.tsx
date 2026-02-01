@@ -417,11 +417,10 @@ const MOCK_APPRAISALS: Record<string, { titles: string[]; analysis: string }> = 
 interface SortableBookItemProps {
   book: SelectedBook;
   index: number;
-  mode: 'magazine' | 'gallery';
   onRemove: (index: number) => void;
 }
 
-function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps) {
+function SortableBookItem({ book, index, onRemove }: SortableBookItemProps) {
   const {
     attributes,
     listeners,
@@ -443,10 +442,8 @@ function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps
     ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
     : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
 
-  // テーマ別の影スタイル
-  const shadowStyle = mode === 'magazine'
-    ? 'shadow-2xl hover:shadow-[0_20px_50px_rgba(0,0,0,0.4)]'
-    : 'shadow-lg hover:shadow-xl';
+  // 影スタイル（ギャラリーモード固定）
+  const shadowStyle = 'shadow-lg hover:shadow-xl';
 
   return (
     <div
@@ -457,7 +454,7 @@ function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps
       <div
         {...attributes}
         {...listeners}
-        className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded ${shadowStyle} hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 ${mode === 'magazine' ? 'border-white/30' : 'border-white'} overflow-hidden relative`}
+        className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded ${shadowStyle} hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 border-white overflow-hidden relative`}
       >
         <img src={book.manga.coverUrlPerVolume?.[book.volume] ?? book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-contain" />
         {/* Remove button - Always visible on mobile, hover on desktop */}
@@ -471,7 +468,7 @@ function SortableBookItem({ book, index, mode, onRemove }: SortableBookItemProps
           <span className="text-gray-700 text-[10px] sm:text-xs font-bold">×</span>
         </button>
       </div>
-      <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/60' : 'text-gray-400'}`}>{book.volume}巻</span>
+      <span className="text-[9px] font-medium text-gray-400">{book.volume}巻</span>
     </div>
   );
 }
@@ -481,7 +478,8 @@ export default function Home() {
   const [currentGenre, setCurrentGenre] = useState('all');
   const [currentPublisher, setCurrentPublisher] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [mode, setMode] = useState<'magazine' | 'gallery'>('gallery');
+  // mode は 'gallery' に固定（本棚テーマは著作権配慮で削除）
+  const mode = 'gallery';
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1098,30 +1096,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Mode Toggle - テーマ選択 */}
-            <div className="flex flex-col items-center gap-2 mt-10">
-              <p className="text-sm font-medium text-gray-400">背景テーマを選択</p>
-              <div className="glass-card flex rounded-full p-2 gap-2 w-full max-w-[400px]">
-                <button
-                  onClick={() => setMode('gallery')}
-                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'gallery'
-                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
-                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  ミニマル
-                </button>
-                <button
-                  onClick={() => setMode('magazine')}
-                  className={`flex-1 min-w-0 py-3 px-6 rounded-full text-sm font-medium transition-all flex items-center justify-center whitespace-nowrap ${mode === 'magazine'
-                    ? 'bg-gradient-to-r from-slate-600 to-gray-700 text-white shadow-lg ring-2 ring-slate-400 font-bold'
-                    : 'bg-white/50 text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  本棚
-                </button>
-              </div>
-            </div>
+
 
             {/* Category Selection - 本棚タイトル選択 */}
             <div className="flex flex-col items-center gap-2 mt-6">
@@ -1162,48 +1137,21 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center w-full px-2 md:px-0">
-              <div className={`relative w-full max-w-4xl aspect-video md:aspect-auto md:h-[500px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 ${mode === 'magazine' ? 'border-white/20' : 'border-gray-200'} bg-white`}>
-                {/* Background - matches share card */}
-                {mode === 'magazine' ? (
-                  <>
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-white/25" />
-                  </>
-                ) : (
-                  <div className="absolute inset-0" style={{ backgroundColor: '#FAF9F6' }} />
-                )}
+              <div className="relative w-full max-w-4xl aspect-video md:aspect-auto md:h-[500px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 border-gray-200 bg-white">
+                {/* Background - gallery style */}
+                <div className="absolute inset-0" style={{ backgroundColor: '#FAF9F6' }} />
 
                 {/* Top Title */}
-                <div className={`relative z-20 py-4 px-6 text-center border-b ${mode === 'magazine' ? 'border-white/20' : 'border-gray-200/50'}`}>
-                  {mode === 'magazine' ? (
-                    <>
-                      <h2 className="text-2xl md:text-3xl font-black text-white drop-shadow-lg" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                        {category === 'recommend' ? 'Recommended Books' : 'My Best Five'}
-                      </h2>
-                      <p className="text-white/60 text-xs tracking-widest uppercase mt-1" style={{ letterSpacing: '0.1em' }}>
-                        {category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <h2
-                        className="text-lg sm:text-xl md:text-2xl tracking-wide"
-                        style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
-                      >
-                        {category === 'recommend' ? 'Recommended' : 'My Best Five'}
-                      </h2>
-                      <p className="text-[10px] sm:text-xs tracking-widest uppercase mt-1" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
-                        {category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}
-                      </p>
-                    </>
-                  )}
+                <div className="relative z-20 py-4 px-6 text-center border-b border-gray-200/50">
+                  <h2
+                    className="text-lg sm:text-xl md:text-2xl tracking-wide"
+                    style={{ fontFamily: "'Shippori Mincho', serif", color: '#1A1A1A', fontWeight: 300 }}
+                  >
+                    {category === 'recommend' ? 'Recommended' : 'My Best Five'}
+                  </h2>
+                  <p className="text-[10px] sm:text-xs tracking-widest uppercase mt-1" style={{ color: '#666', fontWeight: 400, fontFamily: "'Shippori Mincho', serif", letterSpacing: '0.1em' }}>
+                    {category === 'recommend' ? '今読んでほしい、5冊。' : '私を形作る、5冊。'}
+                  </p>
                 </div>
 
                 {/* Books Area with Drag and Drop */}
@@ -1231,7 +1179,6 @@ export default function Home() {
                                 key={`${book.manga.id}-${book.volume}`}
                                 book={book}
                                 index={i}
-                                mode={mode}
                                 onRemove={removeBook}
                               />
                             );
@@ -1239,11 +1186,11 @@ export default function Home() {
                             return (
                               <div key={`empty-${i}`} className="flex flex-col items-center gap-2">
                                 <div
-                                  className={`${baseSize} rounded shadow-inner border-2 border-dashed ${mode === 'magazine' ? 'border-white/80 bg-white/30' : 'border-gray-300 bg-white/30'} flex items-center justify-center`}
+                                  className={`${baseSize} rounded shadow-inner border-2 border-dashed border-gray-300 bg-white/30 flex items-center justify-center`}
                                 >
-                                  <span className={`text-2xl font-light ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>{i + 1}</span>
+                                  <span className="text-2xl font-light text-gray-300">{i + 1}</span>
                                 </div>
-                                <span className={`text-[9px] font-medium ${mode === 'magazine' ? 'text-white/80' : 'text-gray-300'}`}>—</span>
+                                <span className="text-[9px] font-medium text-gray-300">—</span>
                               </div>
                             );
                           }
@@ -1254,18 +1201,15 @@ export default function Home() {
 
                   {/* Instruction Text */}
                   <div className="text-center mt-4">
-                    <p
-                      className={`text-sm ${mode === 'magazine' ? 'text-white font-bold' : 'text-gray-500'}`}
-                      style={mode === 'magazine' ? { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.8)' } : undefined}
-                    >
+                    <p className="text-sm text-gray-500">
                       {selectedBooks.length === 5 ? (
                         <>
                           {/* Mobile: show long-press message */}
-                          <span className={`sm:hidden animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
+                          <span className="sm:hidden animate-pulse text-blue-500">
                             長押しで並び替えできます
                           </span>
                           {/* Desktop: show drag message */}
-                          <span className={`hidden sm:inline animate-pulse ${mode === 'magazine' ? 'text-amber-300' : 'text-blue-500'}`}>
+                          <span className="hidden sm:inline animate-pulse text-blue-500">
                             ドラッグで並び替えできます
                           </span>
                         </>
@@ -1278,14 +1222,7 @@ export default function Home() {
 
                 {/* Footer */}
                 <div className="relative z-20 py-2 text-center flex items-center justify-between px-6">
-                  {mode === 'magazine' ? (
-                    <>
-                      <div className="flex-1" />
-                      <p className="text-white/40 text-[10px]">2026.01</p>
-                    </>
-                  ) : (
-                    <p className="text-gray-400 text-[10px] tracking-widest w-full text-center">2026.01</p>
-                  )}
+                  <p className="text-gray-400 text-[10px] tracking-widest w-full text-center">2026.01</p>
                 </div>
               </div>
             </div>

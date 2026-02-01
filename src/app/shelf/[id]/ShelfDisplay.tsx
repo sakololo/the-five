@@ -8,29 +8,13 @@ interface ShelfDisplayProps {
 }
 
 export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
-    const isMagazine = shelf.theme === 'magazine';
+    // gallery スタイル固定（本棚テーマは著作権配慮で削除）
 
     return (
         <div
-            className={`relative rounded-2xl overflow-hidden shadow-2xl ${isMagazine ? '' : 'bg-[#FAF9F6]'
-                }`}
+            className="relative rounded-2xl overflow-hidden shadow-2xl bg-[#FAF9F6]"
             style={{ aspectRatio: '16/9' }}
         >
-            {/* Background */}
-            {isMagazine ? (
-                <>
-                    <div
-                        className="absolute inset-0"
-                        style={{
-                            backgroundImage: "url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80')",
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                        }}
-                    />
-                    <div className="absolute inset-0 bg-black/30" />
-                </>
-            ) : null}
-
             {/* Content - Books Only (Title moved to page) */}
             <div className="relative z-10 h-full flex flex-col justify-center items-center p-4 md:p-6">
                 {/* Books */}
@@ -51,10 +35,7 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                                 href={book.itemUrl || `https://books.rakuten.co.jp/search?sitem=${encodeURIComponent(book.title)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`${size} ${height} rounded-lg overflow-hidden transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer flex items-center justify-center bg-white shrink-0 ${isMagazine
-                                    ? 'shadow-2xl border-2 border-white/30'
-                                    : 'shadow-lg hover:shadow-xl border border-gray-200'
-                                    }`}
+                                className={`${size} ${height} rounded-lg overflow-hidden transition-all hover:scale-105 hover:-translate-y-2 cursor-pointer flex items-center justify-center bg-white shrink-0 shadow-lg hover:shadow-xl border border-gray-200`}
                                 title={`${book.title} ${book.volume}巻 - 楽天ブックスで見る`}
                             >
                                 <img
@@ -68,11 +49,10 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                 </div>
 
                 {/* Date - Small and subtle */}
-                <div className={`absolute bottom-3 right-4 ${isMagazine ? 'text-white/40' : 'text-gray-300'} text-xs`}>
+                <div className="absolute bottom-3 right-4 text-gray-300 text-xs">
                     <ClientDate date={shelf.created_at} />
                 </div>
             </div>
         </div>
     );
 }
-

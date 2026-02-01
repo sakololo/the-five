@@ -64,10 +64,30 @@ function normalizeQuery(query: string): string {
     return String.fromCharCode(char.charCodeAt(0) + 0x60);
   });
 
-  // Check alias dictionary
+  // Check alias dictionary (exact match first)
   const aliasResult = MANGA_ALIASES[normalized] || MANGA_ALIASES[query.trim()];
   if (aliasResult) {
     return aliasResult;
+  }
+
+  // Fallback: Partial match in alias keys
+  // 入力がエイリアスキーの一部、またはエイリアスキーが入力の一部の場合
+  const normalizedLower = normalized.toLowerCase();
+  const queryLower = query.trim().toLowerCase();
+
+  // Find all matching aliases
+  const partialMatches = Object.entries(MANGA_ALIASES).filter(([key]) => {
+    const keyLower = key.toLowerCase();
+    // 入力がキーに含まれる、またはキーが入力に含まれる
+    return keyLower.includes(normalizedLower) || normalizedLower.includes(keyLower) ||
+      keyLower.includes(queryLower) || queryLower.includes(keyLower);
+  });
+
+  // Prefer the shortest matching key (most specific match)
+  if (partialMatches.length > 0) {
+    partialMatches.sort((a, b) => a[0].length - b[0].length);
+    console.log(`Partial alias match: "${query}" → "${partialMatches[0][1]}"`);
+    return partialMatches[0][1];
   }
 
   return normalized;

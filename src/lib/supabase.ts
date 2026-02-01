@@ -27,7 +27,7 @@ export interface ShelfData {
   id?: string;
   created_at?: string;
   books: BookData[];
-  theme: 'magazine' | 'gallery';
+  theme: 'gallery';  // 'magazine' は著作権配慮で削除済み
   category?: 'identity' | 'recommend';
 }
 
@@ -43,7 +43,8 @@ export interface BookData {
 // Save shelf to Supabase
 export async function saveShelf(
   books: BookData[],
-  theme: 'magazine' | 'gallery',
+  // theme パラメータは互換性のため受け取るが、常に 'gallery' を保存
+  _theme: 'magazine' | 'gallery' = 'gallery',
   category: 'identity' | 'recommend' = 'identity'
 ): Promise<string | null> {
   try {
@@ -51,7 +52,7 @@ export async function saveShelf(
       .from('THE-FIVE')
       .insert({
         books,
-        theme,
+        theme: 'gallery',  // 常に gallery を保存
         category,
       })
       .select('id')

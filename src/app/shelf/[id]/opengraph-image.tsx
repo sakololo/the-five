@@ -51,7 +51,8 @@ export default async function Image({ params }: Props) {
             );
         }
 
-        const isMagazine = shelf.theme === 'magazine';
+
+        // gallery スタイル固定（本棚テーマは著作権配慮で削除済み）
         const categoryTitle = shelf.category === 'recommend'
             ? '今読んでほしい、5冊。'
             : '私を形作る、5冊。';

@@ -704,7 +704,7 @@ export default function Home() {
 
 ▶ ${shareUrl}
 
-#THE_FIVE #私を構成する5冊`;
+#わたしの五冊 #おすすめの５冊`;
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(twitterUrl, '_blank');
@@ -1000,7 +1000,7 @@ export default function Home() {
         : '『私を形作る5冊』を選びました。\n\n';
 
       // Footer with hashtag
-      const footer = '\n\n#THE_FIVE';
+      const footer = '\n\n#わたしの五冊 #おすすめの５冊';
 
       // Calculate available length for book list
       const availableLength = MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - header.length - footer.length - BUFFER;

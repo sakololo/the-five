@@ -1,191 +1,143 @@
 /**
- * ============================================
- * サンドボックス用 検索API
- * ============================================
- * 
- * 実験用のAPIエンドポイントです。
- * 本番のAPIとは完全に独立しています。
- * 予測エンジンのロジックをテストし、デバッグ情報を返します。
+ * Sandbox Search API - Demo endpoint for prediction engine testing
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-    evaluateSearchResult,
-    normalizeQuery,
-    createDebugLogger,
+    parseQuery,
+    determineSearchState,
+    getCachedResult,
+    cacheResult,
+    isCircuitOpen,
+    recordApiFailure,
+    recordApiSuccess,
+    POPULAR_SEARCHES,
+    EmptyQueryError,
+    type BookResult,
     type SearchState,
-    type BookResult
 } from '@/lib/sandbox/prediction-engine';
 
-// キャッシュ無効化
-export const dynamic = 'force-dynamic';
+// Mock book results for demo (no actual API call)
+const MOCK_BOOKS: Record<string, BookResult[]> = {
+    'ONE PIECE': [
+        { id: '1', title: 'ONE PIECE 1', author: '尾田栄一郎', publisher: '集英社', isbn: '9784088720001', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0001/9784088720001.jpg', volume: 1 },
+        { id: '2', title: 'ONE PIECE 2', author: '尾田栄一郎', publisher: '集英社', isbn: '9784088720002', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0002/9784088720002.jpg', volume: 2 },
+        { id: '3', title: 'ONE PIECE 100', author: '尾田栄一郎', publisher: '集英社', isbn: '9784088720100', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0100/9784088720100.jpg', volume: 100 },
+    ],
+    'NARUTO': [
+        { id: '10', title: 'NARUTO 1', author: '岸本斉史', publisher: '集英社', isbn: '9784088720101', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0101/9784088720101.jpg', volume: 1 },
+    ],
+    'DRAGON BALL': [
+        { id: '20', title: 'DRAGON BALL 1', author: '鳥山明', publisher: '集英社', isbn: '9784088720201', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0201/9784088720201.jpg', volume: 1 },
+    ],
+    '鬼滅の刃': [
+        { id: '30', title: '鬼滅の刃 1', author: '吾峠呼世晴', publisher: '集英社', isbn: '9784088720301', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0301/9784088720301.jpg', volume: 1 },
+    ],
+    '呪術廻戦': [
+        { id: '40', title: '呪術廻戦 1', author: '芥見下々', publisher: '集英社', isbn: '9784088720401', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0401/9784088720401.jpg', volume: 1 },
+    ],
+    'SPY×FAMILY': [
+        { id: '50', title: 'SPY×FAMILY 1', author: '遠藤達哉', publisher: '集英社', isbn: '9784088720501', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0501/9784088720501.jpg', volume: 1 },
+    ],
+    'SLAM DUNK': [
+        { id: '60', title: 'SLAM DUNK 1', author: '井上雄彦', publisher: '集英社', isbn: '9784088720601', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0601/9784088720601.jpg', volume: 1 },
+    ],
+    'HUNTER×HUNTER': [
+        { id: '70', title: 'HUNTER×HUNTER 1', author: '冨樫義博', publisher: '集英社', isbn: '9784088720701', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0701/9784088720701.jpg', volume: 1 },
+    ],
+    'BLEACH': [
+        { id: '80', title: 'BLEACH 1', author: '久保帯人', publisher: '集英社', isbn: '9784088720801', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0801/9784088720801.jpg', volume: 1 },
+    ],
+    '進撃の巨人': [
+        { id: '90', title: '進撃の巨人 1', author: '諫山創', publisher: '講談社', isbn: '9784088720901', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/0901/9784088720901.jpg', volume: 1 },
+    ],
+    'チェンソーマン': [
+        { id: '100', title: 'チェンソーマン 1', author: '藤本タツキ', publisher: '集英社', isbn: '9784088721001', imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/1001/9784088721001.jpg', volume: 1 },
+    ],
+};
 
-// ============================================
-// 楽天API呼び出し（本番からコピー）
-// ============================================
-
-async function fetchBooksByKeyword(
-    appId: string,
-    query: string
-): Promise<Record<string, unknown>[]> {
-    // タイトル検索を試す
-    const titleParams = new URLSearchParams({
-        applicationId: appId,
-        format: 'json',
-        hits: '20',
-        sort: 'sales',
-        booksGenreId: '001001', // コミック
-        outOfStockFlag: '1',
-        title: query,
-    });
-
-    const titleUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${titleParams.toString()}`;
-
-    const titleResponse = await fetch(titleUrl, {
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-    });
-
-    if (titleResponse.ok) {
-        const data = await titleResponse.json();
-        const items = data.Items || [];
-
-        if (items.length > 0) {
-            return items;
-        }
-    }
-
-    // キーワード検索にフォールバック
-    const keywordParams = new URLSearchParams({
-        applicationId: appId,
-        format: 'json',
-        hits: '20',
-        sort: 'sales',
-        booksGenreId: '001001',
-        outOfStockFlag: '1',
-        keyword: query,
-    });
-
-    const keywordUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${keywordParams.toString()}`;
-
-    const keywordResponse = await fetch(keywordUrl, {
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-    });
-
-    if (!keywordResponse.ok) {
-        console.error(`Rakuten API keyword search error: ${keywordResponse.status}`);
-        return [];
-    }
-
-    const data = await keywordResponse.json();
-    return data.Items || [];
+function getMockResults(normalizedTitle: string): BookResult[] {
+    return MOCK_BOOKS[normalizedTitle] || [];
 }
 
-// ============================================
-// 結果変換
-// ============================================
+export async function GET(request: NextRequest) {
+    const startTime = Date.now();
+    const query = request.nextUrl.searchParams.get('q') || '';
 
-function transformBooks(items: Record<string, unknown>[]): BookResult[] {
-    const seen = new Set<string>();
-    const books: BookResult[] = [];
-    const excludeKeywords = ['BOX', 'セット'];
-
-    for (const item of items) {
-        const book = item.Item as Record<string, unknown>;
-        const isbn = String(book.isbn || '');
-        const title = (book.title || '') as string;
-
-        // 除外チェック
-        if (excludeKeywords.some(keyword => title.includes(keyword))) {
-            continue;
-        }
-
-        // 重複チェック
-        if (isbn && seen.has(isbn)) continue;
-        if (isbn) seen.add(isbn);
-
-        const coverUrl = (book.largeImageUrl || book.mediumImageUrl || book.smallImageUrl || '') as string;
-
-        books.push({
-            title: title,
-            author: (book.author || '') as string,
-            isbn: isbn,
-            coverUrl: coverUrl,
+    // Empty query - return popular searches
+    if (!query.trim()) {
+        return NextResponse.json({
+            type: 'EMPTY',
+            message: '人気の検索ワード',
+            popularSearches: POPULAR_SEARCHES,
+            processingTimeMs: Date.now() - startTime,
         });
     }
 
-    return books;
-}
-
-// ============================================
-// APIハンドラ
-// ============================================
-
-export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-
-    if (!query) {
-        return NextResponse.json(
-            { error: '検索ワードが必要です' },
-            { status: 400 }
-        );
+    // Check circuit breaker
+    if (isCircuitOpen()) {
+        return NextResponse.json({
+            type: 'CIRCUIT_OPEN',
+            message: '現在、検索サービスが一時的に利用できません。30秒後に再試行してください。',
+            processingTimeMs: Date.now() - startTime,
+        }, { status: 503 });
     }
-
-    const appId = process.env.RAKUTEN_APP_ID;
-    if (!appId) {
-        return NextResponse.json(
-            { error: 'RAKUTEN_APP_IDが設定されていません' },
-            { status: 500 }
-        );
-    }
-
-    // デバッグログを初期化
-    const debug = createDebugLogger();
 
     try {
-        // ステップ1: クエリを正規化
-        debug.log('正規化', `入力: "${query}"`);
-        const normalizedQuery = normalizeQuery(query);
-        debug.log('正規化完了', `結果: "${normalizedQuery}"`);
+        // Check cache
+        const cachedResult = getCachedResult(query);
+        if (cachedResult) {
+            return NextResponse.json({
+                ...cachedResult,
+                cached: true,
+                processingTimeMs: Date.now() - startTime,
+            });
+        }
 
-        // ステップ2: 楽天APIで検索
-        debug.log('API検索', `クエリ: "${normalizedQuery}"`);
-        const rawResults = await fetchBooksByKeyword(appId, normalizedQuery);
-        debug.log('API検索完了', `${rawResults.length}件の生データ取得`);
+        // Parse query
+        const parsedQuery = parseQuery(query);
 
-        // ステップ3: 結果を変換
-        const books = transformBooks(rawResults);
-        debug.log('変換完了', `${books.length}件の本に変換`);
+        // Get mock results (in real implementation, this would call Rakuten API)
+        const mockResults = getMockResults(parsedQuery.normalized);
 
-        // ステップ4: 予測エンジンで判定
-        debug.log('予測エンジン', '判定開始');
-        const searchState: SearchState = evaluateSearchResult(query, normalizedQuery, books);
-        debug.log('予測エンジン完了', `判定結果: ${searchState.type}`);
+        // Determine state
+        const state = determineSearchState(parsedQuery, mockResults);
 
-        // レスポンス
+        // Cache result
+        cacheResult(query, state);
+
+        // Record success
+        recordApiSuccess();
+
         return NextResponse.json({
-            // 基本情報
-            originalQuery: query,
-            normalizedQuery: normalizedQuery,
-
-            // 予測結果
-            searchState: searchState,
-
-            // 本の結果
-            books: books,
-            totalBooks: books.length,
-
-            // デバッグ情報
-            debugLogs: debug.getLogs(),
+            ...state,
+            parsedQuery: {
+                raw: parsedQuery.raw,
+                normalized: parsedQuery.normalized,
+                volume: parsedQuery.volume,
+                isCharacter: parsedQuery.isCharacter,
+                isAuthor: parsedQuery.isAuthor,
+                isTag: parsedQuery.isTag,
+            },
+            cached: false,
+            processingTimeMs: Date.now() - startTime,
         });
 
     } catch (error) {
-        console.error('Sandbox Search API error:', error);
+        if (error instanceof EmptyQueryError) {
+            return NextResponse.json({
+                type: 'ERROR',
+                message: error.message,
+                processingTimeMs: Date.now() - startTime,
+            }, { status: 400 });
+        }
+
+        recordApiFailure();
+
         return NextResponse.json({
-            error: '検索中にエラーが発生しました',
-            details: error instanceof Error ? error.message : 'Unknown error',
+            type: 'ERROR',
+            message: '検索中にエラーが発生しました',
+            processingTimeMs: Date.now() - startTime,
         }, { status: 500 });
     }
 }

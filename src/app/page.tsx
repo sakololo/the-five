@@ -3,10 +3,11 @@
 // AI機能の有効/無効フラグ
 const IS_AI_ENABLED = false;
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import popularMangaData from '@/data/popular-manga.json';
 import { ONE_PIECE_VOLUMES, isOnePiece, getOnePieceCoverUrl } from '@/data/onepiece-volumes';
+import type { SearchState, SearchApiResponse } from '@/types/search';
 
 import {
   DndContext,
@@ -43,73 +44,6 @@ const RECOMMENDED_MANGA = [
   { title: 'BLEACH', author: '久保帯人', category: '殿堂入りの名作' },
   { title: 'ハイキュー!!', author: '古舘春一', category: '人気作品' },
 ];
-
-// Alias dictionary for popular manga
-const MANGA_ALIASES: Record<string, string> = {
-  'ワンピ': 'ONE PIECE',
-  'ワンピース': 'ONE PIECE',
-  'スラダン': 'SLAM DUNK',
-  'スラムダンク': 'SLAM DUNK',
-  'DB': 'ドラゴンボール',
-  'ドラボ': 'ドラゴンボール',
-  'キメツ': '鬼滅の刃',
-  'きめつ': '鬼滅の刃',
-  'シンゲキ': '進撃の巨人',
-  '進撃': '進撃の巨人',
-  'ジュジュツ': '呪術廻戦',
-  '呪術': '呪術廻戦',
-  'スパイファミリー': 'SPY×FAMILY',
-  'スパファミ': 'SPY×FAMILY',
-  'フリーレン': '葬送のフリーレン',
-  'チェンソー': 'チェンソーマン',
-  'ナルト': 'NARUTO',
-  'ブリーチ': 'BLEACH',
-  'ハイキュー': 'ハイキュー!!',
-  'ヒロアカ': '僕のヒーローアカデミア',
-  'ハガレン': '鋼の錬金術師',
-  'エヴァ': '新世紀エヴァンゲリオン',
-  'ジョジョ': 'ジョジョの奇妙な冒険',
-  'キングダム': 'キングダム',
-  'コナン': '名探偵コナン',
-  'ワンパン': 'ワンパンマン',
-  'モブサイコ': 'モブサイコ100',
-  'ハンター': 'HUNTER×HUNTER',
-  'ハンタ': 'HUNTER×HUNTER',
-  'るろ剣': 'るろうに剣心',
-  'るろうに': 'るろうに剣心',
-  'デスノ': 'DEATH NOTE',
-  'デスノート': 'DEATH NOTE',
-  '銀魂': '銀魂',
-  'ぎんたま': '銀魂',
-  'フルバ': 'フルーツバスケット',
-  'ホリミヤ': 'ホリミヤ',
-  'かぐや': 'かぐや様は告らせたい',
-  '推しの子': '【推しの子】',
-  'おしのこ': '【推しの子】',
-  'アオアシ': 'アオアシ',
-  'ブルロ': 'ブルーロック',
-  'ブルーロック': 'ブルーロック',
-  '東リベ': '東京卍リベンジャーズ',
-  '東京リベンジャーズ': '東京卍リベンジャーズ',
-  'ゴリラ': 'ゴリラーマン',
-  'カイジ': '賭博黙示録カイジ',
-  'バキ': '刃牙',
-  'グラップラー': 'グラップラー刃牙',
-  'ベルセルク': 'ベルセルク',
-  'バガボンド': 'バガボンド',
-  'リアル': 'リアル',
-  '宇宙兄弟': '宇宙兄弟',
-  'ドクスト': 'Dr.STONE',
-  'ドクターストーン': 'Dr.STONE',
-  '約ネバ': '約束のネバーランド',
-  '約束のネバーランド': '約束のネバーランド',
-  '黒バス': '黒子のバスケ',
-  'テニプリ': 'テニスの王子様',
-  'マッシュル': 'マッシュル',
-  'アンデラ': 'アンデッドアンラック',
-  'サカモト': 'サカモトデイズ',
-};
-
 // Types
 interface Book {
   id: string;
@@ -137,126 +71,47 @@ interface AppraisalResult {
   analysis: string;
 }
 
-// ========================================
-// 巻数検知ユーティリティ
-// ========================================
+// Mobile detection hook
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  return isMobile;
+}
 
-// 巻数を検出する正規表現パターン
-const VOLUME_PATTERNS = [
-  /第(\d+)巻/,           // 第1巻
-  /(\d+)巻/,             // 1巻
-  /\((\d+)\)/,           // (1)
-  /（(\d+)）/,           // （1） 全角括弧
-  /vol\.?\s*(\d+)/i,     // vol.1, Vol 1
-  /\s(\d+)$/,            // タイトル末尾の数字
-];
-
-// タイトルから巻数を抽出
+// ===== Issue #2: Volume number extractor =====
 function extractVolumeNumber(title: string): number | null {
-  if (typeof title !== 'string') return null;
-  // 全角数字を半角に変換
-  const normalizedTitle = title.replace(/[０-９]/g, (s) =>
+  if (!title) return null;
+
+  const normalized = title.replace(/[０-９]/g, s =>
     String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
   );
 
-  for (const pattern of VOLUME_PATTERNS) {
-    const match = normalizedTitle.match(pattern);
-    if (match) return parseInt(match[1], 10);
+  const patterns = [
+    /第(\d+)巻/,
+    /(\d+)巻/,
+    /\((\d+)\)/,
+    /（(\d+)）/,
+    /〈(\d+)〉/,
+    /【(\d+)】/,
+    /vol\.?\s*(\d+)/i,
+    /#(\d+)/,
+    /\s-\s*(\d+)$/,
+    /\s(\d+)$/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      return isNaN(num) ? null : num;
+    }
   }
   return null;
-}
-
-// ベースタイトル（巻数を除外した部分）を取得
-function getBaseTitle(title: string): string {
-  if (typeof title !== 'string') return '';
-  let result = title;
-
-  // 全角数字を半角に変換
-  const normalizedTitle = title.replace(/[０-９]/g, (s) =>
-    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
-  );
-
-  for (const pattern of VOLUME_PATTERNS) {
-    result = result.replace(pattern, '').trim();
-  }
-
-  // 特殊な隅付き括弧やノイズ除去
-  result = result.replace(/\(\s*\)/g, '').replace(/（\s*）/g, '').trim();
-  return result;
-}
-
-// 同一タイトルの巻数違いを集約し、最大巻数と書影マップを生成
-function consolidateToFirstVolume(manga: Book[]): Book[] {
-  // bookBaseTitle -> { minVolBook, maxVol, minVol, covers }
-  const titleMap = new Map<string, { minVolBook: Book, maxVol: number, minVol: number, covers: Record<number, string> }>();
-
-  for (const book of manga) {
-    const bookBaseTitle = getBaseTitle(book.title);
-
-    // タイトルから巻数抽出を試みる
-    let volumeNum = extractVolumeNumber(book.title);
-
-    // 抽出できなかった場合、API検索結果の「book.volumeNumber」がmappedされているtotalVolumesを使う
-    // (Mockデータの場合はtotalVolumes=シリーズ総数なので1より大きいが、タイトルに巻数がないのでnullになるはず)
-    // 競合回避のため、MockっぽいID("1"など)の場合は1とみなす、などのヒューリスティックを入れる手もあるが
-    // ここではシンプルに「抽出できなければ1 (またはAPIデータの値)」とする
-    if (volumeNum === null) {
-      // もしこれがAPI検索結果(IDが長い等)なら、そのtotalVolumes(実はvolumeNumber)を使う
-      // しかしMockデータ(ID="1")だとtotalVolumes=107とかなので、これをvolumeNumにしてはいけない
-      // 安全策: タイトルに巻数がなければ「巻数不明の代表巻」として1扱いする
-      volumeNum = 1;
-    }
-
-    const existing = titleMap.get(bookBaseTitle);
-
-    if (!existing) {
-      titleMap.set(bookBaseTitle, {
-        minVolBook: book,
-        maxVol: volumeNum,
-        minVol: volumeNum,
-        covers: { [volumeNum]: book.coverUrl }
-      });
-    } else {
-      // 書影を保存
-      existing.covers[volumeNum] = book.coverUrl;
-
-      // 最大巻数の更新
-      if (volumeNum > existing.maxVol) {
-        existing.maxVol = volumeNum;
-      }
-
-      // 代表巻（最小巻数）の更新
-      if (volumeNum < existing.minVol) {
-        existing.minVol = volumeNum;
-        existing.minVolBook = book;
-      }
-    }
-  }
-
-  return Array.from(titleMap.values()).map(({ minVolBook, maxVol, covers }) => {
-    // APIデータの場合、minVolBook.totalVolumesは「その巻の巻数」が入っていることが多い
-    // (例: 14巻なら14)。これを、集計したmaxVol(14)と比較しても同じだが、
-    // Mockデータの場合、minVolBook.totalVolumesは「総巻数(107)」で、maxVolは「1」になる。
-    // したがって、大きい方を採用すれば正しい総巻数になる。
-    const finalTotalVolumes = Math.max(minVolBook.totalVolumes, maxVol);
-
-    return {
-      ...minVolBook,
-      totalVolumes: finalTotalVolumes,
-      coverUrlPerVolume: covers
-    };
-  });
-}
-
-// 同じベースタイトルの全巻を取得
-function getAllVolumesForTitle(baseTitle: string, allManga: Book[]): Book[] {
-  return allManga
-    .filter(book => getBaseTitle(book.title) === baseTitle)
-    .sort((a, b) => {
-      const volA = extractVolumeNumber(a.title) ?? 1;
-      const volB = extractVolumeNumber(b.title) ?? 1;
-      return volA - volB;
-    });
 }
 
 // Mock manga data (same as mockup)
@@ -475,12 +330,17 @@ function SortableBookItem({ book, index, onRemove }: SortableBookItemProps) {
 }
 
 export default function Home() {
+  // Issue #3: Toast deduplication refs
+  const lastToastMessageRef = useRef<string>('');
+  const lastToastTimeRef = useRef<number>(0);
+
   const [selectedBooks, setSelectedBooks] = useState<SelectedBook[]>([]);
   const [currentGenre, setCurrentGenre] = useState('all');
   const [currentPublisher, setCurrentPublisher] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   // mode は 'gallery' に固定（本棚テーマは著作権配慮で削除）
   const mode = 'gallery';
+  const isMobile = useIsMobile();
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -712,9 +572,9 @@ export default function Home() {
 
   // Filter manga - use MOCK_MANGA_DATA when not searching, API results when searching
   const filteredManga = (() => {
-    // If user is actively searching, use API results
+    // If user is actively searching, use API results directly (no grouping)
     if (searchQuery.trim() && apiSearchResults.length > 0) {
-      // Apply genre and publisher filters
+      // Apply genre and publisher filters if needed
       let filtered = apiSearchResults;
 
       if (currentGenre !== 'all') {
@@ -725,11 +585,11 @@ export default function Home() {
         filtered = filtered.filter(manga => manga.publisher?.includes(currentPublisher));
       }
 
-      // Consolidate to first volume to group same-title books
-      return consolidateToFirstVolume(filtered);
+      return filtered;
     }
 
     // Otherwise, show popular manga data with real book covers from Rakuten API
+    // Note: Popular data is manually curated and doesn't need consolidation
     const basicFiltered = (popularMangaData as any[]).filter((manga: any) => {
       const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
       const matchesPublisher = currentPublisher === 'all' || manga.publisher?.includes(currentPublisher);
@@ -740,7 +600,7 @@ export default function Home() {
   })();
 
   // API search function
-  const performApiSearch = useCallback(async (query: string) => {
+  const performApiSearch = async (query: string) => {
     if (!query.trim()) {
       setApiSearchResults([]);
       return;
@@ -755,21 +615,42 @@ export default function Home() {
         throw new Error('Search failed');
       }
 
-      const data = await response.json();
-      const books: Book[] = (data.books || []).map((book: { id?: string | number; title?: string; author?: string; coverUrl?: string; publisher?: string; volumeNumber?: number | null }, index: number) => ({
+      const data: SearchApiResponse = await response.json();
+      const books: Book[] = (data.books || []).map((book: any, index: number) => ({
         id: book.id ? String(book.id) : String(1000 + index),
         title: book.title || '',
         reading: '',
         author: book.author || '',
         genre: '検索結果',
-        publisher: book.publisher || '', // 出版社をマッピング
-        totalVolumes: book.volumeNumber || 1,
+        publisher: book.publisher || '',
+        totalVolumes: book.volumeNumber || 1, // API returns volumeNumber, use it as current volume indicator
         coverColor: 'from-gray-400 to-gray-600',
         coverUrl: book.coverUrl || '',
         itemUrl: undefined,
       }));
 
       setApiSearchResults(books);
+
+      // Handle Search State
+      const state = data.searchState;
+
+      if (state) {
+        if (state.type === 'CONFIDENT_MATCH' && books.length > 0) {
+          // トースト通知のみ（ユーザーが検索結果から手動で選択）
+          showToastMessage(`「${state.recognizedTitle}」が見つかりました`);
+        } else if (state.type === 'AMBIGUOUS_MATCH') {
+          showToastMessageOnce(state.message || 'もしかして、どれか近いものはありますか？');
+        } else if (state.type === 'NOT_FOUND') {
+          setSearchError(state.message);
+        } else if (state.type === 'TITLE_ONLY') {
+          setSearchError(state.subMessage || state.message);
+        } else {
+          console.warn(`Unknown searchState type: ${state.type}`);
+        }
+      } else {
+        console.warn('[Search] searchState is undefined');
+      }
+
     } catch (error) {
       console.error('Search error:', error);
       setSearchError('検索に失敗しました');
@@ -777,7 +658,7 @@ export default function Home() {
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  };
 
   // Debounced search effect
   useEffect(() => {
@@ -790,7 +671,8 @@ export default function Home() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, performApiSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Fetch volumes for a manga from API (max 30 volumes)
   const fetchVolumesForManga = async (manga: Book) => {
@@ -799,10 +681,11 @@ export default function Home() {
 
     setLoadingVolumes(true);
     try {
-      const baseTitle = getBaseTitle(manga.title);
+      // Simple title cleaning for volume search (remove volume numbers like " 10", " Vol.1")
+      const baseTitle = manga.title.replace(/\s?(第?\d+巻?|vol\.?\d+|\(\d+\)|（\d+）)$/i, '').trim();
 
       // ワンピースの場合はハードコードデータを優先使用
-      if (isOnePiece(baseTitle)) {
+      if (isOnePiece(baseTitle) || baseTitle.includes('ONE PIECE') || baseTitle.includes('ワンピース')) {
         const onePieceBooks: Book[] = ONE_PIECE_VOLUMES.map(v => ({
           id: v.isbn,
           title: v.title,
@@ -892,6 +775,20 @@ export default function Home() {
     setToastMessage(message);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Issue #3: Show toast with deduplication
+  const showToastMessageOnce = (message: string) => {
+    const now = Date.now();
+    if (
+      message === lastToastMessageRef.current &&
+      now - lastToastTimeRef.current < 500
+    ) {
+      return;
+    }
+    lastToastMessageRef.current = message;
+    lastToastTimeRef.current = now;
+    showToastMessage(message);
   };
 
   // Get dominant genre
@@ -1481,7 +1378,7 @@ export default function Home() {
                   <img src={selectedManga.coverUrl} alt={selectedManga.title} className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800">{getBaseTitle(selectedManga.title)}</h3>
+                  <h3 className="text-lg font-bold text-gray-800">{selectedManga.title}</h3>
                   <p className="text-sm text-gray-500">{selectedManga.author}</p>
                   <p className="text-xs text-blue-600 font-medium mt-1">全{selectedManga.totalVolumes}巻</p>
                 </div>

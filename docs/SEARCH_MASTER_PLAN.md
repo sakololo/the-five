@@ -26,10 +26,11 @@ graph TD
     
     subgraph "Adaptive Network Fetch"
         SearchStrat --> |Intent: SPECIFIC| API_Title[Rakuten Title Search]
+        API_Title --> |0 Results| API_Fallback[Fallback: Keyword Search]
         SearchStrat --> |Intent: AMBIGUOUS| API_Parallel[Parallel: Title + Keyword]
     end
     
-    API_Title & API_Parallel --> RawResults[Raw Results]
+    API_Title & API_Parallel & API_Fallback --> RawResults[Raw Results]
     
     subgraph "The Funnel (Logic)"
         RawResults --> Dedupe[Deduplication]
@@ -95,13 +96,16 @@ This plan consolidates the architecture, security, and draft logic into actionab
 - [ ] **Create Orchestrator**: `src/lib/search/search-orchestrator.ts`
     - Port logic from `DRAFT_search-orchestration.ts`.
     - **Optimization**: Implement `Adaptive Network Fetch` (Title only vs Parallel).
+    - **Resilience**: Implement "Soft Fallback" -> If `Specific` search yields 0 results, trigger `Keyword` search.
 - [ ] **Refactor API Route**: `src/app/api/search/route.ts`
     - **Step 1**: Validate & Rate Limit.
     - **Step 2**: Normalize Query.
-    - **Step 3**: Fetch from Rakuten (Wrapped in Circuit Breaker).
+    - **Step 3**: Fetch from Rakuten (Wrapped in Circuit Breaker + Fallback Logic).
     - **Step 4**: Score & Sort.
     - **Step 5**: Determine State via Orchestrator.
     - **Step 6**: Return JSON.
+- [ ] **Safety Config**: `src/lib/constants/blocked-keywords.ts`
+    - Define `BLOCKED_KEYWORDS` array (R18/Offensive terms) for the -1000 penalty check.
 
 ### Phase 4: Verification
 - [ ] **Unit Tests**: Test the Scorer with the "Test Scenarios" table (e.g., "Wanpi" -> ONE PIECE).

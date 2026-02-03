@@ -8,6 +8,26 @@ import { evaluateSearchState, type SearchState } from '@/lib/search/search-orche
 // Disable Next.js caching for this dynamic API route
 export const dynamic = 'force-dynamic';
 
+/**
+ * 環境変数からタイムアウト値を取得（敵対的レビュー承認済み）
+ */
+function getEnvTimeout(key: string, defaultValue: number): number {
+  const value = process.env[key];
+  if (!value) return defaultValue;
+
+  const parsed = parseInt(value, 10);
+
+  // NaN, Infinity, 0以下を無効値として扱う
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    console.warn(`Invalid timeout value for ${key}: "${value}". Using default ${defaultValue}ms`);
+    return defaultValue;
+  }
+
+  return parsed;
+}
+
+const GOOGLE_TIMEOUT_MS = getEnvTimeout('GOOGLE_TIMEOUT_MS', 2000);
+
 function getClientIP(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
@@ -29,20 +49,24 @@ function validateOrigin(request: NextRequest): boolean {
   ) || origin === '' && referer === '';
 }
 
-// Fetch ISBN from Google Books API
-async function fetchIsbnFromGoogle(query: string): Promise<string | null> {
+// Fetch ISBN from Google Books API (with optional AbortSignal)
+async function fetchIsbnFromGoogle(query: string, signal?: AbortSignal): Promise<string | null> {
   const googleApiKey = process.env.GOOGLE_BOOKS_API_KEY;
   if (!googleApiKey) {
-    console.warn('GOOGLE_BOOKS_API_KEY is not set, skipping Google search');
+    console.warn('Configuration Warning: GOOGLE_BOOKS_API_KEY is not set. ISBN fallback disabled.');
     return null;
   }
 
   try {
     const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1&key=${googleApiKey}`;
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(url, { cache: 'no-store', signal });
 
     if (!response.ok) {
-      console.warn(`Google Books API error: ${response.status}`);
+      if (response.status === 429) {
+        console.error('CRITICAL: Google Books API Quota Exceeded (429).');
+      } else {
+        console.error(`Google Books API Error: ${response.status} ${response.statusText}`);
+      }
       return null;
     }
 
@@ -72,8 +96,29 @@ async function fetchIsbnFromGoogle(query: string): Promise<string | null> {
 
     return null;
   } catch (error) {
-    console.warn('Google Books API call failed:', error);
+    const isAbortError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
+    if (isAbortError) {
+      console.warn(`Google Books API: Timeout after ${GOOGLE_TIMEOUT_MS}ms`);
+    } else {
+      console.error('Google Books API Network Failure:', error);
+    }
     return null;
+  }
+}
+
+/**
+ * タイムアウト付きでGoogle Books APIからISBNを取得（敵対的レビュー承認済み）
+ */
+async function fetchIsbnWithTimeout(query: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GOOGLE_TIMEOUT_MS);
+
+  try {
+    return await fetchIsbnFromGoogle(query, controller.signal);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -283,12 +328,12 @@ export async function GET(request: NextRequest) {
   try {
     // Step 1: Normalize Query (using new Normalizer)
     const normalizedData = normalizeSearchQuery(query);
-    const { normalized: normalizedQuery, targetVolume, wasAliasResolved } = normalizedData;
+    const { normalized: normalizedQuery, normalizedForMatching, targetVolume, wasAliasResolved } = normalizedData;
 
-    console.log(`Normalized: "${normalizedQuery}", Volume: ${targetVolume}, Alias: ${wasAliasResolved}`);
+    console.log(`Normalized: "${normalizedQuery}", ForMatching: "${normalizedForMatching}", Volume: ${targetVolume}, Alias: ${wasAliasResolved}`);
 
-    // Step 2: Try to get ISBN from Google Books API
-    const targetIsbn = await fetchIsbnFromGoogle(normalizedQuery);
+    // Step 2: Try to get ISBN from Google Books API (with timeout)
+    const targetIsbn = await fetchIsbnWithTimeout(normalizedQuery);
 
     // Step 3: Fetch from APIs
     const searchPromises: Promise<Record<string, unknown>[]>[] = [];
@@ -316,13 +361,17 @@ export async function GET(request: NextRequest) {
     });
 
     const [isbnResults, normalizedResults, originalResults] = successfulResults;
-    const allItems = [...isbnResults, ...normalizedResults, ...originalResults];
+    const allItems = [
+      ...(isbnResults || []),
+      ...(normalizedResults || []),
+      ...(originalResults || [])
+    ];
 
     // Step 4: Transform to BookData
     const books = transformBooks(allItems);
 
-    // Step 5: Score and Sort (using new Scorer)
-    const scoredBooks = scoreAndSortBooks(books, normalizedQuery, targetVolume);
+    // Step 5: Score and Sort (using normalizedForMatching for better matching)
+    const scoredBooks = scoreAndSortBooks(books, normalizedForMatching, targetVolume);
 
     // Step 6: Filter Adult Content
     const filteredBooks = filterAdultContent(scoredBooks);

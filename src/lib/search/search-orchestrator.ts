@@ -12,16 +12,43 @@ export type SearchStateType =
     | 'TITLE_ONLY'        // タイトル特定: タイトルは分かるがAPI結果なし
     | 'NOT_FOUND';        // 見つからない: 全く分からない
 
-export interface SearchState {
+// Base interface
+interface BaseSearchState {
     type: SearchStateType;
     message: string;
-    subMessage?: string;
-    primaryAction: string;
     secondaryAction?: string;
+    subMessage?: string;
     recognizedTitle?: string;
     topScore: number;
     resultCount: number;
 }
+
+// Discriminated Unions for stricter typing
+export interface ConfidentMatchState extends BaseSearchState {
+    type: 'CONFIDENT_MATCH';
+    primaryAction: string;
+    secondaryAction: string; // Required for confident match
+}
+
+export interface AmbiguousMatchState extends BaseSearchState {
+    type: 'AMBIGUOUS_MATCH';
+    primaryAction: string;
+    secondaryAction: string; // Required for ambiguous match
+}
+
+export interface TitleOnlyState extends BaseSearchState {
+    type: 'TITLE_ONLY';
+    primaryAction: string;
+    secondaryAction: string; // Required
+}
+
+export interface NotFoundState extends BaseSearchState {
+    type: 'NOT_FOUND';
+    primaryAction: string;
+    secondaryAction?: string; // Optional for not found
+}
+
+export type SearchState = ConfidentMatchState | AmbiguousMatchState | TitleOnlyState | NotFoundState;
 
 // 状態判定の閾値（敵対的レビューで調整済み）
 const THRESHOLDS = {
@@ -55,7 +82,8 @@ export function evaluateSearchState(
     }
 
     // ケース2: 結果があるが、スコアが低い → AMBIGUOUS
-    if (resultCount > 0 && topScore < THRESHOLDS.AMBIGUOUS) {
+    // (50-65の範囲もここに含まれるようになった)
+    if (resultCount > 0) {
         return {
             type: 'AMBIGUOUS_MATCH',
             message: 'もしかして、どれか近いものはありますか？',
@@ -66,21 +94,7 @@ export function evaluateSearchState(
         };
     }
 
-    // ケース3: 結果はあるが中間スコア → それでもCONFIDENTとして扱う（UX向上）
-    if (resultCount > 0) {
-        return {
-            type: 'CONFIDENT_MATCH',
-            message: `『${books[0].title}』`,
-            subMessage: 'こちらでしょうか？',
-            primaryAction: 'このタイトルで探す',
-            secondaryAction: '違う本を探す',
-            recognizedTitle: books[0].title,
-            topScore,
-            resultCount,
-        };
-    }
-
-    // ケース4: 結果なし、だがエイリアスでタイトルは特定できた → TITLE_ONLY
+    // ケース3: 結果なし、だがエイリアスでタイトルは特定できた → TITLE_ONLY
     if (wasAliasResolved && recognizedTitle) {
         return {
             type: 'TITLE_ONLY',
@@ -94,7 +108,7 @@ export function evaluateSearchState(
         };
     }
 
-    // ケース5: 完全に見つからない → NOT_FOUND
+    // ケース4: 完全に見つからない → NOT_FOUND
     return {
         type: 'NOT_FOUND',
         message: 'この本棚では見つかりませんでした。',

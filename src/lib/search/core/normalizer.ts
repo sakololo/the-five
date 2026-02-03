@@ -2,6 +2,8 @@
  * Search Query Normalizer
  * 
  * クエリの正規化とメタデータ抽出を行う
+ * 
+ * 敵対的レビュー承認済み: 2026-02-03
  */
 
 import { MANGA_ALIASES } from '@/app/api/search/aliases';
@@ -9,6 +11,8 @@ import { MANGA_ALIASES } from '@/app/api/search/aliases';
 export interface NormalizedQuery {
     /** 正規化されたクエリ文字列 */
     normalized: string;
+    /** マッチング用に正規化されたクエリ（記号変換済み） */
+    normalizedForMatching: string;
     /** 元のクエリ */
     original: string;
     /** 抽出された巻数（あれば） */
@@ -25,10 +29,42 @@ export interface NormalizedQuery {
 const VOLUME_PATTERNS = [
     /(\d+)\s*[巻]/, // 「72巻」
     /[第]\s*(\d+)\s*[巻]/, // 「第72巻」
-    /\s(\d+)$/, // 末尾の数字「NARUTO 72」
     /[(（](\d+)[)）]/, // 括弧内「(72)」「（72）」
     /Vol\.?\s*(\d+)/i, // 「Vol.72」「Vol 72」
 ];
+
+/**
+ * 正規表現の特殊文字をエスケープする
+ */
+function escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+}
+
+/**
+ * 区切り文字リスト（敵対的レビューで精査済み）
+ */
+const SEPARATOR_CHARS = [
+    '×', '✕', '✖', '・', ':', '：', '/', '／',
+    '-', '−', '!', '！', '?', '？', '&', '＆',
+    '〜', '～', '♪', '★', '☆', '#', '＃', '@', '＠',
+    '(', ')', '（', '）', '[', ']', '【', '】',
+    `"`, `'`, `"`, `"`, `'`, `'`
+];
+
+const SEPARATOR_PATTERN = new RegExp(
+    `[${SEPARATOR_CHARS.map(escapeRegExp).join('')}]`,
+    'g'
+);
+
+/**
+ * 区切り文字を正規化（記号→空白、連続空白→単一空白）
+ */
+export function normalizeSeparators(input: string): string {
+    return input
+        .replace(SEPARATOR_PATTERN, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 
 /**
  * クエリから巻数を抽出する
@@ -70,6 +106,11 @@ function extractVolumeFromQuery(query: string): { volume: number | null; cleaned
  */
 function normalizeCharacters(input: string): string {
     let normalized = input.trim();
+
+    // 全角英数字 → 半角（敵対的レビューで追加）
+    normalized = normalized.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => {
+        return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    });
 
     // 半角カタカナ → 全角カタカナ
     normalized = normalized.replace(/[\uff66-\uff9f]/g, (char) => {
@@ -132,12 +173,27 @@ export function normalizeSearchQuery(query: string): NormalizedQuery {
     // Step 2: 文字を正規化
     const normalizedChars = normalizeCharacters(cleanedQuery);
 
-    // Step 3: エイリアス解決
+    // Step 3: 区切り文字を正規化（マッチング用）
+    const normalizedForMatching = normalizeSeparators(normalizedChars);
+
+    // Step 4: 空クエリチェック（敵対的レビューで追加）
+    if (normalizedForMatching.trim() === '') {
+        return {
+            normalized: normalizedChars,
+            normalizedForMatching: '',
+            original,
+            targetVolume: volume,
+            wasAliasResolved: false,
+        };
+    }
+
+    // Step 5: エイリアス解決
     const aliasResult = resolveAlias(cleanedQuery, normalizedChars);
 
     if (aliasResult) {
         return {
             normalized: aliasResult.resolved,
+            normalizedForMatching: normalizeSeparators(aliasResult.resolved),
             original,
             targetVolume: volume,
             wasAliasResolved: true,
@@ -147,6 +203,7 @@ export function normalizeSearchQuery(query: string): NormalizedQuery {
 
     return {
         normalized: normalizedChars,
+        normalizedForMatching,
         original,
         targetVolume: volume,
         wasAliasResolved: false,

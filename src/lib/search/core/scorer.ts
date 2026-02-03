@@ -4,7 +4,7 @@
  * 検索結果にスコアを付与し、ユーザーの意図に最も合致する順に並べる
  */
 
-import { extractVolumeNumber } from './normalizer';
+import { extractVolumeNumber, normalizeSeparators } from './normalizer';
 
 export interface BookData {
     title: string;
@@ -38,7 +38,7 @@ const SCORES = {
     VOLUME_1_BONUS: 20,
     SHORT_TITLE_BONUS: 10,
     EDITION_PENALTY: -5,
-    SPINOFF_PENALTY: -30,  // 番外編ペナルティ（External Auditor推奨）
+    SPINOFF_PENALTY: -30,
     ADULT_CONTENT_PENALTY: -1000,
 };
 
@@ -50,7 +50,6 @@ const SPINOFF_KEYWORDS = [
     'ガイドブック', 'ファンブック', 'キャラクターブック',
     '外伝', '小説版', 'ノベライズ', 'アンソロジー',
     'イラスト集', 'エピソードオブ',
-    // 削除: 'データブック', '画集', '公式', 'カラー版', 'オフィシャル'
 ];
 
 // アダルトコンテンツフィルタキーワード
@@ -59,12 +58,34 @@ const ADULT_KEYWORDS = [
 ];
 
 /**
- * タイトルが正規化クエリを含むかチェック
+ * タイトルが正規化クエリを含むかチェック（敵対的レビューで強化）
+ * - 空クエリは常にfalse
+ * - 直接包含チェック（語順考慮）を優先
+ * - トークン比較（語順無視）をフォールバック
  */
 function checkExactTitleMatch(title: string, normalizedQuery: string): boolean {
-    const titleLower = title.toLowerCase();
-    const queryLower = normalizedQuery.toLowerCase();
-    return titleLower.includes(queryLower);
+    // 空クエリは常にfalse
+    if (!normalizedQuery || normalizedQuery.trim() === '') {
+        return false;
+    }
+
+    const normalizedTitle = normalizeSeparators(title).toLowerCase();
+    const normalizedQ = normalizedQuery.toLowerCase();
+
+    // 1. 直接包含チェック（語順も一致）
+    if (normalizedTitle.includes(normalizedQ)) {
+        return true;
+    }
+
+    // 2. トークン比較（語順無視、フォールバック）
+    const titleTokens = normalizedTitle.split(' ').filter(t => t.length > 0);
+    const queryTokens = normalizedQ.split(' ').filter(t => t.length > 0);
+
+    if (queryTokens.length === 0) {
+        return false;
+    }
+
+    return queryTokens.every(qt => titleTokens.some(tt => tt.includes(qt)));
 }
 
 /**

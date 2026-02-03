@@ -106,8 +106,15 @@ async function fetchIsbnFromGoogle(query: string, signal?: AbortSignal): Promise
   }
 }
 
+// Error logging rate limit for Google Books API
+let googleErrorCount = 0;
+let googleErrorResetTime = Date.now();
+const GOOGLE_ERROR_LOG_LIMIT = 5;
+const GOOGLE_ERROR_WINDOW_MS = 60000;  // 1分
+
 /**
- * タイムアウト付きでGoogle Books APIからISBNを取得（敵対的レビュー承認済み）
+ * タイムアウト付きでGoogle Books APIからISBNを取得
+ * エラーログはレート制限付き（1分に5回まで）
  */
 async function fetchIsbnWithTimeout(query: string): Promise<string | null> {
   const controller = new AbortController();
@@ -115,7 +122,35 @@ async function fetchIsbnWithTimeout(query: string): Promise<string | null> {
 
   try {
     return await fetchIsbnFromGoogle(query, controller.signal);
-  } catch {
+  } catch (error) {
+    const isAbortError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
+
+    if (!isAbortError) {
+      try {
+        // レート制限のリセット
+        const now = Date.now();
+        if (now - googleErrorResetTime > GOOGLE_ERROR_WINDOW_MS) {
+          googleErrorCount = 0;
+          googleErrorResetTime = now;
+        }
+
+        // 制限内ならログ出力
+        if (googleErrorCount < GOOGLE_ERROR_LOG_LIMIT) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const truncatedMessage = errorMessage.length > 200
+            ? errorMessage.substring(0, 200) + '...'
+            : errorMessage;
+          console.error(`Google Books API: Unexpected error - ${truncatedMessage}`);
+          googleErrorCount++;
+        } else if (googleErrorCount === GOOGLE_ERROR_LOG_LIMIT) {
+          console.warn(`Google Books API: Error rate limit reached (${GOOGLE_ERROR_LOG_LIMIT}/min), suppressing logs`);
+          googleErrorCount++;
+        }
+      } catch {
+        // ログ出力自体が失敗してもアプリは継続
+      }
+    }
+
     return null;
   } finally {
     clearTimeout(timeoutId);

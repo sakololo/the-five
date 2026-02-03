@@ -1,31 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { MANGA_ALIASES } from './aliases';
+import { checkRateLimit } from '@/lib/search/security/rate-limiter';
+import { normalizeSearchQuery } from '@/lib/search/core/normalizer';
+import { scoreAndSortBooks, filterAdultContent, type BookData } from '@/lib/search/core/scorer';
+import { evaluateSearchState, type SearchState } from '@/lib/search/search-orchestrator';
 
 // Disable Next.js caching for this dynamic API route
 export const dynamic = 'force-dynamic';
-
-// Simple in-memory rate limiter
-const requestCounts = new Map<string, { count: number; timestamp: number }>();
-const RATE_LIMIT = 10; // requests per minute
-const RATE_WINDOW = 60 * 1000; // 1 minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = requestCounts.get(ip);
-
-  if (!record || (now - record.timestamp) > RATE_WINDOW) {
-    requestCounts.set(ip, { count: 1, timestamp: now });
-    return true;
-  }
-
-  if (record.count >= RATE_LIMIT) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
 
 function getClientIP(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -37,7 +18,6 @@ function validateOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin') || '';
   const referer = request.headers.get('referer') || '';
 
-  // Allow localhost for development
   const allowedOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
@@ -46,51 +26,7 @@ function validateOrigin(request: NextRequest): boolean {
 
   return allowedOrigins.some(allowed =>
     origin.startsWith(allowed) || referer.startsWith(allowed)
-  ) || origin === '' && referer === ''; // Allow direct server calls
-}
-
-// Normalize search query
-function normalizeQuery(query: string): string {
-  let normalized = query.trim();
-
-  // Convert half-width katakana to full-width
-  normalized = normalized.replace(/[\uff66-\uff9f]/g, (char) => {
-    const code = char.charCodeAt(0);
-    return String.fromCharCode(code - 0xff66 + 0x30a2);
-  });
-
-  // Convert hiragana to katakana
-  normalized = normalized.replace(/[\u3041-\u3096]/g, (char) => {
-    return String.fromCharCode(char.charCodeAt(0) + 0x60);
-  });
-
-  // Check alias dictionary (exact match first)
-  const aliasResult = MANGA_ALIASES[normalized] || MANGA_ALIASES[query.trim()];
-  if (aliasResult) {
-    return aliasResult;
-  }
-
-  // Fallback: Partial match in alias keys
-  // 入力がエイリアスキーの一部、またはエイリアスキーが入力の一部の場合
-  const normalizedLower = normalized.toLowerCase();
-  const queryLower = query.trim().toLowerCase();
-
-  // Find all matching aliases
-  const partialMatches = Object.entries(MANGA_ALIASES).filter(([key]) => {
-    const keyLower = key.toLowerCase();
-    // 入力がキーに含まれる、またはキーが入力に含まれる
-    return keyLower.includes(normalizedLower) || normalizedLower.includes(keyLower) ||
-      keyLower.includes(queryLower) || queryLower.includes(keyLower);
-  });
-
-  // Prefer the shortest matching key (most specific match)
-  if (partialMatches.length > 0) {
-    partialMatches.sort((a, b) => a[0].length - b[0].length);
-    console.log(`Partial alias match: "${query}" → "${partialMatches[0][1]}"`);
-    return partialMatches[0][1];
-  }
-
-  return normalized;
+  ) || origin === '' && referer === '';
 }
 
 // Fetch ISBN from Google Books API
@@ -124,17 +60,13 @@ async function fetchIsbnFromGoogle(query: string): Promise<string | null> {
       return null;
     }
 
-    // Prefer ISBN-13
     const isbn13 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_13');
     if (isbn13) {
-      console.log(`Google Books found ISBN-13: ${isbn13.identifier} for query "${query}"`);
       return isbn13.identifier;
     }
 
-    // Fallback to ISBN-10
     const isbn10 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_10');
     if (isbn10) {
-      console.log(`Google Books found ISBN-10: ${isbn10.identifier} for query "${query}"`);
       return isbn10.identifier;
     }
 
@@ -150,34 +82,34 @@ async function fetchBooksByKeyword(
   appId: string,
   query: string
 ): Promise<Record<string, unknown>[]> {
-  // First try title search (more accurate)
   const titleParams = new URLSearchParams({
     applicationId: appId,
     format: 'json',
     hits: '20',
-    sort: 'sales', // 売上順（人気順）
-    booksGenreId: '001001', // コミック
-    outOfStockFlag: '1', // 在庫切れも含む
+    sort: 'sales',
+    booksGenreId: '001001',
+    outOfStockFlag: '1',
     title: query,
   });
 
   const titleUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${titleParams.toString()}`;
 
-  const titleResponse = await fetch(titleUrl, {
-    headers: { 'Accept': 'application/json' },
-    cache: 'no-store',
-  });
+  try {
+    const titleResponse = await fetch(titleUrl, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
+    });
 
-  if (titleResponse.ok) {
-    const data = await titleResponse.json();
-    const items = data.Items || [];
-
-    if (items.length > 0) {
-      return items;
+    if (titleResponse.ok) {
+      const data = await titleResponse.json();
+      const items = data.Items || [];
+      if (items.length > 0) {
+        return items;
+      }
     }
+  } catch (err) {
+    console.warn('Rakuten Title Search failed (ignoring):', err);
   }
-
-  // Fallback to keyword search if title search finds nothing
 
   const keywordParams = new URLSearchParams({
     applicationId: appId,
@@ -191,29 +123,22 @@ async function fetchBooksByKeyword(
 
   const keywordUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${keywordParams.toString()}`;
 
-  const keywordResponse = await fetch(keywordUrl, {
-    headers: { 'Accept': 'application/json' },
-    cache: 'no-store',
-  });
+  try {
+    const keywordResponse = await fetch(keywordUrl, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
+    });
 
-  if (!keywordResponse.ok) {
-    console.error(`Rakuten API keyword search error: ${keywordResponse.status}`);
+    if (!keywordResponse.ok) {
+      return [];
+    }
+
+    const data = await keywordResponse.json();
+    return data.Items || [];
+  } catch (err) {
+    console.error('Rakuten Keyword Search failed:', err);
     return [];
   }
-
-  const data = await keywordResponse.json();
-  const items = data.Items || [];
-
-  // Filter keyword results to only include items where query appears in title
-  // This prevents unrelated results like "ONE PIECE" appearing for "もやしもん" search
-  const queryPrefix = query.slice(0, 2).toLowerCase();
-  const filteredItems = items.filter((item: Record<string, unknown>) => {
-    const bookItem = item.Item as Record<string, unknown>;
-    const title = String(bookItem?.title || '').toLowerCase();
-    return title.includes(queryPrefix) || title.includes(query.toLowerCase());
-  });
-
-  return filteredItems;
 }
 
 // Fetch books from Rakuten API by ISBN
@@ -229,79 +154,39 @@ async function fetchBooksByIsbn(
 
   const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
 
-  const response = await fetch(apiUrl, {
-    headers: {
-      'Accept': 'application/json',
-    },
-    cache: 'no-store',
-  });
+  try {
+    const response = await fetch(apiUrl, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
+    });
 
-  if (!response.ok) {
-    console.warn(`Rakuten API ISBN search error: ${response.status}`);
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return data.Items || [];
+  } catch (err) {
+    console.warn('Rakuten ISBN search failed:', err);
     return [];
   }
-
-  const data = await response.json();
-  const items = data.Items || [];
-  console.log(`[DEBUG] ISBN search for "${isbn}" found ${items.length} items, first: "${items[0]?.Item?.title || 'none'}"`);
-  return items;
 }
 
-// Legacy function for backward compatibility (title/author search)
-async function fetchBooks(
-  appId: string,
-  searchType: 'title' | 'author',
-  query: string
-): Promise<Record<string, unknown>[]> {
-  const params = new URLSearchParams({
-    applicationId: appId,
-    format: 'json',
-    hits: '30',
-    sort: 'sales',
-    booksGenreId: '001001', // コミック
-  });
-
-  params.append(searchType, query);
-
-  const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
-
-  const response = await fetch(apiUrl, {
-    headers: {
-      'Accept': 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Rakuten API error: ${response.status} ${response.statusText}`, errorText);
-    throw new Error(`Rakuten API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.Items || [];
-}
-
-// Transform and deduplicate books
-function transformBooks(items: Record<string, unknown>[]): Record<string, unknown>[] {
+// Transform raw API items to BookData format
+function transformBooks(items: Record<string, unknown>[]): BookData[] {
   const seen = new Set<string>();
-  const books: Record<string, unknown>[] = [];
-
-  // 除外キーワード（BOX、セットのみ除外する形に緩和）
-  // 完全版、愛蔵版、新装版などは「そのバージョンの本」として有効なため除外しない
+  const books: BookData[] = [];
   const excludeKeywords = ['BOX', 'セット'];
 
   for (const item of items) {
     const book = item.Item as Record<string, unknown>;
-    const isbn = String(book.isbn || ''); // 数値変換を防ぐため明示的にString化
+    const isbn = String(book.isbn || '');
     const title = (book.title || '') as string;
 
-    // 除外キーワードチェック
     if (excludeKeywords.some(keyword => title.includes(keyword))) {
       continue;
     }
 
-    // Skip duplicates
     if (isbn && seen.has(isbn)) continue;
     if (isbn) seen.add(isbn);
 
@@ -310,38 +195,24 @@ function transformBooks(items: Record<string, unknown>[]): Record<string, unknow
     books.push({
       id: String(books.length + 1),
       title: title,
-      author: book.author || '',
-      publisher: book.publisherName || '',
+      author: (book.author || '') as string,
+      publisher: (book.publisherName || '') as string,
       isbn: isbn || '',
       coverUrl: coverUrl,
       hasImage: !!coverUrl,
-      volumeNumber: extractVolumeNumber(title),
     });
   }
 
   return books;
 }
 
-// Sort books: with images first, then without
-function sortBooks(books: Record<string, unknown>[]): Record<string, unknown>[] {
-  return books.sort((a, b) => {
-    const aHasImage = a.hasImage as boolean;
-    const bHasImage = b.hasImage as boolean;
-
-    if (aHasImage && !bHasImage) return -1;
-    if (!aHasImage && bHasImage) return 1;
-    return 0;
-  });
-}
-
-// Search Logging Logic
 async function logFailedSearch(query: string, ip: string, userAgent: string) {
   try {
     const { error } = await supabase
       .from('search_logs')
       .insert({
         query: query,
-        ip: ip, // Hashed or raw depending on privacy policy, kept raw for now as per internal use
+        ip: ip,
         user_agent: userAgent,
       });
 
@@ -362,20 +233,39 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Rate limiting
   const ip = getClientIP(request);
-  if (!checkRateLimit(ip)) {
+  const rateLimitResult = await checkRateLimit(ip);
+
+  if (!rateLimitResult.success) {
+    const resetSeconds = Math.ceil((rateLimitResult.reset - Date.now()) / 1000);
     return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { status: 429 }
+      { error: `Too many requests. Please try again in ${resetSeconds} seconds.` },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+        }
+      }
     );
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q') || '';
+  const rawQuery = searchParams.get('q') || '';
   const genre = searchParams.get('genre') || '';
 
-  console.log(`Search API Request: query="${query}", genre="${genre}", ip="${ip}"`);
+  // Input Validation
+  if (rawQuery.length > 100) {
+    return NextResponse.json(
+      { error: 'Query too long (max 100 chars)' },
+      { status: 400 }
+    );
+  }
+
+  const query = rawQuery;
+
+  console.log(`Search API Request: query="${query}", ip="${ip}"`);
 
   if (!query && !genre) {
     return NextResponse.json(
@@ -386,88 +276,84 @@ export async function GET(request: NextRequest) {
 
   const appId = process.env.RAKUTEN_APP_ID;
   if (!appId) {
-    console.warn('RAKUTEN_APP_ID is not set. Using local fallback.');
+    console.warn('RAKUTEN_APP_ID is not set.');
     return NextResponse.json({ books: [], warning: 'No API Key' });
   }
 
   try {
-    // Normalize the query
-    const normalizedQuery = normalizeQuery(query);
-    const originalQuery = query.trim();
+    // Step 1: Normalize Query (using new Normalizer)
+    const normalizedData = normalizeSearchQuery(query);
+    const { normalized: normalizedQuery, targetVolume, wasAliasResolved } = normalizedData;
 
-    // Step 1: Try to get ISBN from Google Books API (for better accuracy)
+    console.log(`Normalized: "${normalizedQuery}", Volume: ${targetVolume}, Alias: ${wasAliasResolved}`);
+
+    // Step 2: Try to get ISBN from Google Books API
     const targetIsbn = await fetchIsbnFromGoogle(normalizedQuery);
 
-    // Step 2: Parallel search with Rakuten API
+    // Step 3: Fetch from APIs
     const searchPromises: Promise<Record<string, unknown>[]>[] = [];
 
-    // Request A: ISBN search (if we have an ISBN from Google)
     if (targetIsbn) {
       searchPromises.push(fetchBooksByIsbn(appId, targetIsbn));
     } else {
       searchPromises.push(Promise.resolve([]));
     }
 
-    // Request B: Title/keyword search with normalized query
     searchPromises.push(fetchBooksByKeyword(appId, normalizedQuery));
 
-    // Request C: Also search with original query if different from normalized
-    // This handles cases where hiragana matches better than katakana
-    if (originalQuery !== normalizedQuery && !MANGA_ALIASES[originalQuery]) {
-      searchPromises.push(fetchBooksByKeyword(appId, originalQuery));
+    if (query.trim() !== normalizedQuery) {
+      searchPromises.push(fetchBooksByKeyword(appId, query.trim()));
     } else {
       searchPromises.push(Promise.resolve([]));
     }
 
-    const results = await Promise.all(searchPromises);
-    const [isbnResults, normalizedResults, originalResults] = results;
+    const results = await Promise.allSettled(searchPromises);
 
-    // Step 3: Combine results (ISBN match first, then normalized, then original)
+    const successfulResults = results.map(r => {
+      if (r.status === 'fulfilled') return r.value;
+      console.warn('One of the search promises failed:', r.reason);
+      return [];
+    });
+
+    const [isbnResults, normalizedResults, originalResults] = successfulResults;
     const allItems = [...isbnResults, ...normalizedResults, ...originalResults];
 
-    // Transform and deduplicate
+    // Step 4: Transform to BookData
     const books = transformBooks(allItems);
 
+    // Step 5: Score and Sort (using new Scorer)
+    const scoredBooks = scoreAndSortBooks(books, normalizedQuery, targetVolume);
+
+    // Step 6: Filter Adult Content
+    const filteredBooks = filterAdultContent(scoredBooks);
+
+    // Step 7: Determine Search State (using new Orchestrator)
+    const searchState: SearchState = evaluateSearchState(
+      filteredBooks,
+      wasAliasResolved,
+      normalizedQuery
+    );
+
     // Log if no results found
-    if (books.length === 0 && query.trim().length > 0) {
+    if (filteredBooks.length === 0 && query.trim().length > 0) {
       const userAgent = request.headers.get('user-agent') || 'unknown';
       await logFailedSearch(query, ip, userAgent);
     }
 
-    // Sort: images first
-    const sortedBooks = sortBooks(books);
-
     return NextResponse.json({
-      books: sortedBooks,
-      total: sortedBooks.length,
+      books: filteredBooks,
+      total: filteredBooks.length,
       normalizedQuery: normalizedQuery !== query ? normalizedQuery : undefined,
-      googleIsbn: targetIsbn || undefined, // For debugging
+      targetVolume: targetVolume || undefined,
+      googleIsbn: targetIsbn || undefined,
+      searchState: searchState,
     });
 
   } catch (error) {
-    console.error('Search API error details:', error);
+    console.error('Search API Critical Error:', error);
     return NextResponse.json({
       books: [],
-      warning: 'Search failed, returning empty results'
-    });
+      error: 'Internal Server Error'
+    }, { status: 500 });
   }
-}
-
-function extractVolumeNumber(title: string): number | null {
-  if (typeof title !== 'string') return null;
-  // Try multiple patterns for volume number extraction
-
-  // Pattern 1: 括弧内の数字（全角・半角） e.g., "タイトル(1)" or "タイトル（1）"
-  let match = title.match(/[(（](\d+)[)）]/);
-  if (match) return parseInt(match[1], 10);
-
-  // Pattern 2: スペース+数字 e.g., "タイトル 1" or "タイトル　1"
-  match = title.match(/[\s　](\d+)$/);
-  if (match) return parseInt(match[1], 10);
-
-  // Pattern 3: 「巻」の前の数字 e.g., "タイトル 第1巻" or "タイトル1巻"
-  match = title.match(/(\d+)[巻]/);
-  if (match) return parseInt(match[1], 10);
-
-  return null;
 }

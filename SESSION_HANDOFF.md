@@ -1,54 +1,45 @@
-# THE FIVE - 引き継ぎドキュメント
+# 🔄 Session Handoff Document
 
-**最終更新: 2026-02-01**
-
-## 今回のセッションで行った作業
-
-### 1. エイリアス辞書の大規模拡張
-- `src/app/api/search/aliases.ts` を作成
-- **1,261件のユニークなエイリアス**を統合
-- 元々 `route.ts` にあったインライン定義（約170件）を分離
-
-### 2. エイリアス管理の効率化
-- `scripts/extract-aliases.js` を作成
-- `ADDITIONAL_ALIASES.md` からエイリアスを自動抽出するスクリプト
-
-### 3. エイリアス追加の手順
-1. `src/app/api/search/ADDITIONAL_ALIASES.md` に追記
-   ```typescript
-   '略称': '正式タイトル',
-   ```
-2. スクリプト実行: `node scripts/extract-aliases.js`
-3. `git push` で本番反映
+**Date**: 2026-02-03
+**Status**: Ranking Improvements Complete ✅
+**Branch**: `fix/search-ranking-improvements` (Implied)
 
 ---
 
-## 重要なファイル
+## 📅 Today's Achievements
 
-| ファイル | 役割 |
-|---------|------|
-| `src/app/api/search/aliases.ts` | エイリアス辞書（1,261件） |
-| `src/app/api/search/route.ts` | 検索API（aliases.tsをインポート） |
-| `src/app/api/search/ADDITIONAL_ALIASES.md` | エイリアス追加用ファイル |
-| `scripts/extract-aliases.js` | エイリアス抽出スクリプト |
+1.  **Search Ranking Improvements (Fixed)**:
+    - **Spinoff Penalty**: Increased to -100. Added "CHOPPER", "チョッパー", "'s" to keywords.
+    - **Deduplication**: Implemented `deduplicateBooks` to group by series and show only the highest-scoring volume.
+    - **Verification**: Confirmed "ONE PIECE" search shows main series at top (Score 60) and spinoffs at bottom (Score -20).
 
----
+2.  **Code Cleanup**:
+    - **Refactored**: `isMobile` shadowing in `src/app/page.tsx` fixed (renamed to `isNativeMobileDevice`).
 
-## 検索機能の仕様
-
-1. ユーザーが入力した検索ワードをエイリアス辞書で変換
-2. 楽天ブックスAPIで検索
-3. タイトル検索優先、キーワード検索はフォールバック
+3.  **Audits Passed**:
+    - **Build Check**: `npm run build` Passed ✅.
+    - **Logic Check**: `curl` verification confirms expected ranking behavior.
 
 ---
 
-## 未対応・今後の課題
+## 🚧 Pending Issues (Next Session)
 
-- 検索結果がない場合のガイダンスメッセージ（一度実装したが取り消し）
-- さらなるエイリアス追加（ユーザーからのリクエスト対応）
+### 1. 📱 UX Decision (Confident Match)
+**Context**: We removed "Auto-Drawer Open" for safe search.
+**Decision Required**:
+- **Option A (Desktop)**: Auto-open drawer for `CONFIDENT_MATCH`?
+- **Option B (Mobile)**: Show message only?
+- *Currently: Shows toast message for all.*
+
+### 2. 🛡️ Adversarial Review (Round 5 - Frontend)
+- Attack the new UI with "Confident Hallucinations" and edge cases.
+- Verify `SearchState` handling in `page.tsx` (Partially implemented legacy logic needs update).
 
 ---
 
-## GitHubリポジトリ
+## 🚀 How to Resume
 
-https://github.com/sakololo/the-five
+1.  **Review UX**: Decide on Option A vs B for drawer behavior.
+2.  **Frontend Implementation**:
+    - Update `page.tsx` to fully use `SearchState` from API.
+    - Remove legacy `performApiSearch` logic that manually sets messages? (API now returns `searchState`).

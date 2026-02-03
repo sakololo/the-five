@@ -38,7 +38,7 @@ const SCORES = {
     VOLUME_1_BONUS: 20,
     SHORT_TITLE_BONUS: 10,
     EDITION_PENALTY: -5,
-    SPINOFF_PENALTY: -30,
+    SPINOFF_PENALTY: -100,
     ADULT_CONTENT_PENALTY: -1000,
 };
 
@@ -50,6 +50,7 @@ const SPINOFF_KEYWORDS = [
     'ガイドブック', 'ファンブック', 'キャラクターブック',
     '外伝', '小説版', 'ノベライズ', 'アンソロジー',
     'イラスト集', 'エピソードオブ',
+    'CHOPPER', 'チョッパー', "'s",
 ];
 
 // アダルトコンテンツフィルタキーワード

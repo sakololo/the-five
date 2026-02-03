@@ -3,7 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { checkRateLimit } from '@/lib/search/security/rate-limiter';
 import { normalizeSearchQuery } from '@/lib/search/core/normalizer';
 import { scoreAndSortBooks, filterAdultContent, type BookData } from '@/lib/search/core/scorer';
-import { evaluateSearchState, type SearchState } from '@/lib/search/search-orchestrator';
+import { deduplicateBooks } from '@/lib/search/core/deduplicator';
+import { evaluateSearchState } from '@/lib/search/search-orchestrator';
+import type { SearchState } from '@/types/search';
 
 // Disable Next.js caching for this dynamic API route
 export const dynamic = 'force-dynamic';
@@ -408,8 +410,11 @@ export async function GET(request: NextRequest) {
     // Step 5: Score and Sort (using normalizedForMatching for better matching)
     const scoredBooks = scoreAndSortBooks(books, normalizedForMatching, targetVolume);
 
+    // Step 5.5: Deduplicate by Series
+    const deduplicatedBooks = deduplicateBooks(scoredBooks);
+
     // Step 6: Filter Adult Content
-    const filteredBooks = filterAdultContent(scoredBooks);
+    const filteredBooks = filterAdultContent(deduplicatedBooks);
 
     // Step 7: Determine Search State (using new Orchestrator)
     const searchState: SearchState = evaluateSearchState(

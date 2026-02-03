@@ -926,9 +926,9 @@ export default function Home() {
       const encodedUrl = encodeURIComponent(shelfUrl);
 
       // Detect mobile and try to open X app directly
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isNativeMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      if (isMobile) {
+      if (isNativeMobileDevice) {
         // Try X app first with intent URL
         const xAppUrl = `twitter://post?message=${shareText}%20${encodedUrl}`;
         const webUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;

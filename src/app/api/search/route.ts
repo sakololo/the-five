@@ -414,7 +414,21 @@ export async function GET(request: NextRequest) {
     const deduplicatedBooks = deduplicateBooks(scoredBooks);
 
     // Step 6: Filter Adult Content
-    const filteredBooks = filterAdultContent(deduplicatedBooks);
+    let filteredBooks = filterAdultContent(deduplicatedBooks);
+
+    // Step 6.5: Quality Filter (Remove "noise" results if we have a good match)
+    // "ONE PIECE" often appears in unrelated searches with score ~10 (short title bonus only).
+    // "Hayate no Gotoku" exact match has score 60+.
+    // RED TEAM FIX: Vol 1 books get Score 30 (20 Vol1 + 10 Short). Threshold 20 is too low.
+    // Raising to 40 to ensure unrelated Volume 1s are removed.
+    if (filteredBooks.length > 0) {
+      const topScore = filteredBooks[0].score;
+      if (topScore >= 40) {
+        // If we have a decent match, filter out low-quality noise
+        // Updated to 40 to exclude "Vol.1 Bonus (20) + Short Title (10) = 30" cases
+        filteredBooks = filteredBooks.filter(book => book.score >= 40);
+      }
+    }
 
     // Step 7: Determine Search State (using new Orchestrator)
     const searchState: SearchState = evaluateSearchState(

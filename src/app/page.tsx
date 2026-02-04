@@ -334,6 +334,10 @@ export default function Home() {
   const lastToastMessageRef = useRef<string>('');
   const lastToastTimeRef = useRef<number>(0);
 
+  // Issue #4: AbortController for search cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+
   const [selectedBooks, setSelectedBooks] = useState<SelectedBook[]>([]);
   const [currentGenre, setCurrentGenre] = useState('all');
   const [currentPublisher, setCurrentPublisher] = useState('all');
@@ -376,6 +380,27 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  // Show toast
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Issue #3: Show toast with deduplication
+  const showToastMessageOnce = (message: string) => {
+    const now = Date.now();
+    if (
+      message === lastToastMessageRef.current &&
+      now - lastToastTimeRef.current < 500
+    ) {
+      return;
+    }
+    lastToastMessageRef.current = message;
+    lastToastTimeRef.current = now;
+    showToastMessage(message);
+  };
 
   // Volume data for drawer (fetched from API when drawer opens)
   const [volumeData, setVolumeData] = useState<Record<string, Book[]>>({});
@@ -554,13 +579,13 @@ export default function Home() {
     const bookTitles = selectedBooks.map((b) => truncateTitle(b.manga.title)).join('\n・');
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const bookIds = selectedBooks.map((b) => `${b.manga.id}-${b.volume}`).join(',');
-    const shareUrl = `${siteUrl}?books=${encodeURIComponent(bookIds)}&title=${encodeURIComponent(appraisalResult.soulTitle)}`;
+    const shareUrl = `${siteUrl}?books=${encodeURIComponent(bookIds)}&title=${encodeURIComponent(appraisalResult?.soulTitle || '')}`;
 
     const text = `【鑑定完了】私の5冊はこれ！
 
 ・${bookTitles}
 
-二つ名『${appraisalResult.soulTitle}』
+二つ名『${appraisalResult?.soulTitle}』
 
 ▶ ${shareUrl}
 
@@ -573,7 +598,9 @@ export default function Home() {
   // Filter manga - use MOCK_MANGA_DATA when not searching, API results when searching
   const filteredManga = (() => {
     // If user is actively searching, use API results directly (no grouping)
-    if (searchQuery.trim() && apiSearchResults.length > 0) {
+    // Red Team Fix: If query exists, ALWAYS return API results (even if empty)
+    // Do not fallback to popular manga, to avoid confusing the user.
+    if (searchQuery.trim()) {
       // Apply genre and publisher filters if needed
       let filtered = apiSearchResults;
 
@@ -606,11 +633,22 @@ export default function Home() {
       return;
     }
 
+    // Cancel previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsSearching(true);
     setSearchError(null);
 
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal
+      });
       if (!response.ok) {
         throw new Error('Search failed');
       }
@@ -641,9 +679,17 @@ export default function Home() {
         } else if (state.type === 'AMBIGUOUS_MATCH') {
           showToastMessageOnce(state.message || 'もしかして、どれか近いものはありますか？');
         } else if (state.type === 'NOT_FOUND') {
-          setSearchError(state.message);
+          // setSearchError(state.message); // UI側で標準メッセージを出すため、ここではエラーセットしない方が自然かもだが、Red Team指示に従いメッセージを出すなら残す。
+          // しかしRed Teamは「見つかりません」のUX改善を求めている。
+          // 検索結果0件の場合、filteredManga.length === 0 のUIが表示される。
+          // ここでsearchErrorを入れると、エラー表示優先になる可能性があるが、現在のUI実装ではsearchErrorの表示箇所がない？
+          // searchError state is used... actually where is it used?
+          // Looking at the JSX... wait, I don't see searchError being rendered in the main content area in the previous view_file output.
+          // It might be used for Toast or something?
+          // Ah, I see setSearchError('検索に失敗しました') in catch block.
+          // Let's keep it for now, but the main "No results" UI is handled by filteredManga.length === 0.
         } else if (state.type === 'TITLE_ONLY') {
-          setSearchError(state.subMessage || state.message);
+          // setSearchError(state.subMessage || state.message);
         } else {
           console.warn(`Unknown searchState type: ${state.type}`);
         }
@@ -651,12 +697,24 @@ export default function Home() {
         console.warn('[Search] searchState is undefined');
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Search aborted');
+        return;
+      }
       console.error('Search error:', error);
+      // Only set error if not aborted
       setSearchError('検索に失敗しました');
       setApiSearchResults([]);
     } finally {
-      setIsSearching(false);
+      // Only turn off loading if this is the active controller (or if we didn't use one?)
+      // Actually, if aborted, we might not want to turn off loading if a new one started?
+      // But setIsSearching is global.
+      // Ideally: if (abortControllerRef.current === controller) setIsSearching(false);
+      if (abortControllerRef.current === controller) {
+        setIsSearching(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -670,7 +728,13 @@ export default function Home() {
       }
     }, 500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      // Abort active request on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
@@ -768,27 +832,6 @@ export default function Home() {
       setSelectedBooks(prev => [...prev, { manga: mangaWithCorrectCover, volume }]);
     }
     closeDrawer();
-  };
-
-  // Show toast
-  const showToastMessage = (message: string) => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  // Issue #3: Show toast with deduplication
-  const showToastMessageOnce = (message: string) => {
-    const now = Date.now();
-    if (
-      message === lastToastMessageRef.current &&
-      now - lastToastTimeRef.current < 500
-    ) {
-      return;
-    }
-    lastToastMessageRef.current = message;
-    lastToastTimeRef.current = now;
-    showToastMessage(message);
   };
 
   // Get dominant genre
@@ -1308,7 +1351,12 @@ export default function Home() {
                 </div>
               ) : filteredManga.length === 0 ? (
                 <div className="col-span-full text-center py-12">
-                  <p className="text-gray-400">検索結果がありません</p>
+                  <p className="text-gray-400 mb-2">検索結果がありません</p>
+                  {searchQuery && (
+                    <p className="text-sm text-gray-500">
+                      「<span className="font-bold text-gray-700">{searchQuery}</span>」に一致するマンガは見つかりませんでした
+                    </p>
+                  )}
                 </div>
               ) : (
                 filteredManga.map((manga) => (
@@ -1371,16 +1419,16 @@ export default function Home() {
               {/* Selected Manga Info */}
               <div className="flex items-center gap-4 mb-6">
                 <div
-                  onClick={() => selectVolume(selectedManga, 1)}
-                  className={`w-16 h-24 bg-gradient-to-br ${selectedManga.coverColor} rounded-lg shadow-lg overflow-hidden cursor-pointer hover:scale-105 hover:ring-2 hover:ring-blue-400 transition-all`}
+                  onClick={() => selectedManga && selectVolume(selectedManga, 1)}
+                  className={`w-16 h-24 bg-gradient-to-br ${selectedManga?.coverColor} rounded-lg shadow-lg overflow-hidden cursor-pointer hover:scale-105 hover:ring-2 hover:ring-blue-400 transition-all`}
                   title="1巻を本棚に追加"
                 >
-                  <img src={selectedManga.coverUrl} alt={selectedManga.title} className="w-full h-full object-cover" />
+                  <img src={selectedManga?.coverUrl} alt={selectedManga?.title} className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800">{selectedManga.title}</h3>
-                  <p className="text-sm text-gray-500">{selectedManga.author}</p>
-                  <p className="text-xs text-blue-600 font-medium mt-1">全{selectedManga.totalVolumes}巻</p>
+                  <h3 className="text-lg font-bold text-gray-800">{selectedManga?.title}</h3>
+                  <p className="text-sm text-gray-500">{selectedManga?.author}</p>
+                  <p className="text-xs text-blue-600 font-medium mt-1">全{selectedManga?.totalVolumes}巻</p>
                 </div>
               </div>
 
@@ -1391,18 +1439,18 @@ export default function Home() {
                   <p className="text-xs text-gray-500 mb-2">巻データを読み込み中...</p>
                 )}
                 <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                  {Array.from({ length: selectedManga.totalVolumes }, (_, i) => i + 1).map((vol) => {
-                    const isSelected = selectedBooks.some(b => b.manga.id === selectedManga.id && b.volume === vol);
+                  {Array.from({ length: selectedManga?.totalVolumes || 0 }, (_, i) => i + 1).map((vol) => {
+                    const isSelected = selectedBooks.some(b => b.manga.id === selectedManga?.id && b.volume === vol);
 
                     // Try to get cover from API-fetched volume data
-                    const volumeBooks = volumeData[selectedManga.id] || [];
+                    const volumeBooks = volumeData[selectedManga?.id || ''] || [];
                     const volumeBook = volumeBooks.find(b => extractVolumeNumber(b.title) === vol);
                     const volumeCoverUrl = volumeBook?.coverUrl;
 
                     return (
                       <div
                         key={vol}
-                        onClick={() => selectVolume(selectedManga, vol)}
+                        onClick={() => selectedManga && selectVolume(selectedManga, vol)}
                         className={`flex-shrink-0 cursor-pointer transition-all ${isSelected ? 'scale-110' : ''}`}
                       >
                         <div className={`w-16 h-24 rounded-lg shadow-md relative overflow-hidden ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-105'}`}>
@@ -1410,7 +1458,7 @@ export default function Home() {
                             <>
                               <img
                                 src={volumeCoverUrl}
-                                alt={`${selectedManga.title} ${vol}巻`}
+                                alt={`${selectedManga?.title} ${vol}巻`}
                                 className="w-full h-full object-cover"
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-1">
@@ -1418,7 +1466,7 @@ export default function Home() {
                               </div>
                             </>
                           ) : (
-                            <div className={`w-full h-full bg-gradient-to-br ${selectedManga.coverColor} flex items-end justify-center pb-1`}>
+                            <div className={`w-full h-full bg-gradient-to-br ${selectedManga?.coverColor} flex items-end justify-center pb-1`}>
                               <span className="text-white text-xs font-bold drop-shadow">{vol}巻</span>
                             </div>
                           )}

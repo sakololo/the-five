@@ -166,10 +166,11 @@ function resolveAlias(query: string, normalizedQuery: string): { resolved: strin
  * メインの正規化関数
  */
 export function normalizeSearchQuery(query: string): NormalizedQuery {
-    const original = query;
+    // Step 0: Truncate query to prevent excessive processing (SPEC V4)
+    const original = truncateQuery(query);
 
-    // Step 0: 全角数字を半角に変換（最優先）
-    let processedQuery = query.replace(/[０-９]/g, (c) =>
+    // Step 1: 全角数字を半角に変換（最優先）
+    let processedQuery = original.replace(/[０-９]/g, (c) =>
         String.fromCharCode(c.charCodeAt(0) - 0xFEE0)
     );
 
@@ -225,7 +226,19 @@ const MAX_QUERY_LENGTH = 100;
 
 export function truncateQuery(query: string): string {
     if (!query) return '';
-    return query.length > MAX_QUERY_LENGTH ? query.slice(0, MAX_QUERY_LENGTH) : query;
+    if (query.length <= MAX_QUERY_LENGTH) return query;
+
+    let truncated = query.slice(0, MAX_QUERY_LENGTH);
+
+    // Check if we cut in the middle of a surrogate pair
+    // A high surrogate (first part) ranges from 0xD800 to 0xDBFF
+    const lastCode = truncated.charCodeAt(truncated.length - 1);
+    if (lastCode >= 0xD800 && lastCode <= 0xDBFF) {
+        // We have a lone high surrogate at the end, remove it
+        return truncated.slice(0, -1);
+    }
+
+    return truncated;
 }
 
 export function extractVolumeNumber(title: string): number | null {

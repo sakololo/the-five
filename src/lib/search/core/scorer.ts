@@ -29,6 +29,7 @@ export interface ScoreBreakdown {
     editionPenalty: number;
     spinoffPenalty: number;
     adultPenalty: number;
+    tokenTitleMatch: number;
 }
 
 // スコアリング定数
@@ -43,7 +44,22 @@ const SCORES = {
     ADULT_CONTENT_PENALTY: -1000,
 };
 
-// ... (keywords remain same) ...
+// 版型ペナルティ対象キーワード
+const EDITION_KEYWORDS = ['文庫', '愛蔵版', 'ワイド版', '新装版', 'デラックス', 'DX'];
+
+// 番外編・スピンオフペナルティ対象キーワード（敵対的レビューで精査済み）
+const SPINOFF_KEYWORDS = [
+    'ガイドブック', 'ファンブック', 'キャラクターブック',
+    '外伝', '小説版', 'ノベライズ', 'アンソロジー',
+    'イラスト集', 'エピソードオブ',
+    'CHOPPER', 'チョッパー',
+    '総集編', '劇場版', 'コミカライズ' // V4: Added missing keywords
+];
+
+// アダルトコンテンツフィルタキーワード
+const ADULT_KEYWORDS = [
+    'エロ', 'アダルト', '18禁', 'R18', 'R-18',
+];
 
 /**
  * トークンベースのマッチングチェック（スペース区切り対応）
@@ -63,75 +79,6 @@ function checkTokenTitleMatch(title: string, normalizedQuery: string): boolean {
     // 全てのトークンがタイトルに含まれるかチェック
     return queryTokens.every(token => normalizedTitle.includes(token));
 }
-
-// ...
-
-const breakdown: ScoreBreakdown = {
-    exactTitleMatch: 0,
-    volumeMatch: 0, // This logic needs update in interface? No, just using map
-    volume1Bonus: 0,
-    shortTitleBonus: 0,
-    editionPenalty: 0,
-    spinoffPenalty: 0,
-    adultPenalty: 0,
-    // @ts-ignore - Dynamic property for breakdown
-    tokenTitleMatch: 0
-};
-
-// 1. Contains Match / Token Match ボーナス
-const hasContainsMatch = checkExactTitleMatch(title, normalizedQuery);
-if (hasContainsMatch) {
-    breakdown.exactTitleMatch = SCORES.EXACT_TITLE_MATCH;
-} else {
-    // Fallback: Token Match (e.g. "進撃 巨人")
-    const hasTokenMatch = checkTokenTitleMatch(title, normalizedQuery);
-    if (hasTokenMatch) {
-        // @ts-ignore
-        breakdown.tokenTitleMatch = SCORES.TOKEN_TITLE_MATCH;
-    }
-}
-
-const hasAnyMatch = hasContainsMatch || (breakdown as any).tokenTitleMatch > 0;
-
-// 2. 巻数一致ボーナス（CF-08対応: タイトル一致条件を追加）
-// 巻数ボーナスはタイトルが一致している場合のみ適用
-if (targetVolume !== null && volumeNumber === targetVolume && hasAnyMatch) {
-    breakdown.volumeMatch = SCORES.TARGET_VOLUME_MATCH;
-}
-
-// ...
-
-// 6. 番外編ペナルティ（External Auditor推奨）
-if (checkSpinoffKeywords(title)) {
-    // クエリがいずれかのスピンオフキーワードを含んでいるか？
-    const queryHasSpinoffKw = SPINOFF_KEYWORDS.some(keyword => {
-        const normalizedKw = keyword.replace(/[\s・]/g, '').toLowerCase();
-        return normalizedQuery.toLowerCase().includes(normalizedKw);
-    });
-
-    // 明示的な指定がない場合のみペナルティ適用
-    if (!queryHasSpinoffKw) {
-        breakdown.spinoffPenalty = SCORES.SPINOFF_PENALTY;
-    }
-}
-
-// ... (constants)
-// 版型ペナルティ対象キーワード
-const EDITION_KEYWORDS = ['文庫', '愛蔵版', 'ワイド版', '新装版', 'デラックス', 'DX'];
-
-// 番外編・スピンオフペナルティ対象キーワード（敵対的レビューで精査済み）
-const SPINOFF_KEYWORDS = [
-    'ガイドブック', 'ファンブック', 'キャラクターブック',
-    '外伝', '小説版', 'ノベライズ', 'アンソロジー',
-    'イラスト集', 'エピソードオブ',
-    'CHOPPER', 'チョッパー',
-    '総集編', '劇場版', 'コミカライズ' // V4: Added missing keywords
-];
-
-// アダルトコンテンツフィルタキーワード
-const ADULT_KEYWORDS = [
-    'エロ', 'アダルト', '18禁', 'R18', 'R-18',
-];
 
 /**
  * タイトルが正規化クエリを含むかチェック（敵対的レビューで強化）
@@ -164,25 +111,6 @@ function checkExactTitleMatch(title: string, normalizedQuery: string): boolean {
     }
 
     return queryTokens.every(qt => titleTokens.some(tt => tt.includes(qt)));
-}
-
-/**
- * トークンベースのマッチングチェック（スペース区切り対応）
- * Contains Matchが不成立の場合に使用
- */
-function checkTokenTitleMatch(title: string, normalizedQuery: string): boolean {
-    if (!normalizedQuery || normalizedQuery.trim() === '') return false;
-
-    // クエリを正規化して分割
-    const normalizedTitle = normalizeSeparators(normalizeCharacters(title)).toLowerCase();
-    const normalizedQ = normalizedQuery.toLowerCase();
-
-    // スペースで分割
-    const queryTokens = normalizedQ.split(/\s+/).filter(t => t.length > 0);
-    if (queryTokens.length < 2) return false; // 単語1つの場合はContains Matchでカバー済み
-
-    // 全てのトークンがタイトルに含まれるかチェック
-    return queryTokens.every(token => normalizedTitle.includes(token));
 }
 
 /**
@@ -230,50 +158,38 @@ export function scoreBook(
         editionPenalty: 0,
         spinoffPenalty: 0,
         adultPenalty: 0,
+        tokenTitleMatch: 0,
     };
 
-    // 1. Contains Match ボーナス（CF-03対応: Exact Matchから名称変更）
+    // 1. Contains Match / Token Match ボーナス
     const hasContainsMatch = checkExactTitleMatch(title, normalizedQuery);
     if (hasContainsMatch) {
         breakdown.exactTitleMatch = SCORES.EXACT_TITLE_MATCH;
+    } else {
+        // Fallback: Token Match (e.g. "進撃 巨人")
+        const hasTokenMatch = checkTokenTitleMatch(title, normalizedQuery);
+        if (hasTokenMatch) {
+            breakdown.tokenTitleMatch = SCORES.TOKEN_TITLE_MATCH;
+        }
     }
+
+    const hasAnyMatch = hasContainsMatch || breakdown.tokenTitleMatch > 0;
 
     // 2. 巻数一致ボーナス（CF-08対応: タイトル一致条件を追加）
     // 巻数ボーナスはタイトルが一致している場合のみ適用
-    if (targetVolume !== null && volumeNumber === targetVolume && hasContainsMatch) {
+    if (targetVolume !== null && volumeNumber === targetVolume && hasAnyMatch) {
         breakdown.volumeMatch = SCORES.TARGET_VOLUME_MATCH;
     }
 
     // 3. 第1巻ボーナス（巻数指定がない場合）
     if (targetVolume === null && volumeNumber === 1) {
+        // NOTE: Red Team Critique - This bonus + Short Title Bonus can cause "Garbage Leak"
+        // e.g. "asdf" matches nothing but gets 20 + 10 = 30 points.
+        // We need a Relevance Guard (implemented in route.ts or here)
         breakdown.volume1Bonus = SCORES.VOLUME_1_BONUS;
     }
 
-    // 4. 短いタイトルボーナス（シンプルなタイトルを優先）
-    if (title.length <= 30) {
-        breakdown.shortTitleBonus = SCORES.SHORT_TITLE_BONUS;
-    }
-
-    // 5. 版型ペナルティ
-    if (checkEditionKeywords(title)) {
-        breakdown.editionPenalty = SCORES.EDITION_PENALTY;
-    }
-
-    // 6. 番外編ペナルティ（External Auditor推奨）
-    // 修正: ユーザーが検索クエリで明示的にその単語を含めている場合はペナルティを適用しない
-    // Cross-Language対応: クエリに何らかのスピンオフキーワードが含まれていれば、ペナルティを解除する
-    if (checkSpinoffKeywords(title)) {
-        // クエリがいずれかのスピンオフキーワードを含んでいるか？
-        const queryHasSpinoffKw = SPINOFF_KEYWORDS.some(keyword => {
-            const normalizedKw = keyword.replace(/[\s・]/g, '').toLowerCase();
-            return normalizedQuery.toLowerCase().includes(normalizedKw);
-        });
-
-        // 明示的な指定がない場合のみペナルティ適用
-        if (!queryHasSpinoffKw) {
-            breakdown.spinoffPenalty = SCORES.SPINOFF_PENALTY;
-        }
-    }
+    // ... (rest of function)
 
     // 7. アダルトコンテンツペナルティ
     if (checkAdultContent(title)) {
@@ -287,7 +203,8 @@ export function scoreBook(
         breakdown.shortTitleBonus +
         breakdown.editionPenalty +
         breakdown.spinoffPenalty +
-        breakdown.adultPenalty;
+        breakdown.adultPenalty +
+        breakdown.tokenTitleMatch;
 
     return {
         ...book,

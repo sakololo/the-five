@@ -419,15 +419,22 @@ export async function GET(request: NextRequest) {
     // Step 6.5: Quality Filter (Remove "noise" results)
 
     // V4 FIX: Absolute Floor Filter (Always remove garbage < 15)
-    // Prevents "Noise Flood" where low-score unrelated items appear when topScore is low.
     filteredBooks = filteredBooks.filter(book => book.score >= 15);
+
+    // V4 FIX: Relevance Guard (Chaos Monkey Defense)
+    // Remove items that have ZERO match relevancy (only bonus points like Vol 1).
+    // "asdf" -> Score 30 (Vol1+Short) -> Removed because textMatch is 0.
+    filteredBooks = filteredBooks.filter(book =>
+      book.scoreBreakdown.exactTitleMatch > 0 ||
+      book.scoreBreakdown.tokenTitleMatch > 0
+    );
 
     // Relative Quality Filter (If we have a good match, be stricter)
     if (filteredBooks.length > 0) {
       const topScore = filteredBooks[0].score;
       if (topScore >= 40) {
-        // If we have a decent match, filter out low-quality noise
         // Keep threshold 40 to exclude "Vol.1 Bonus (20) + Short Title (10) = 30" cases
+        // (This is redundant now with Relevance Guard but safer to keep)
         filteredBooks = filteredBooks.filter(book => book.score >= 40);
       }
     }

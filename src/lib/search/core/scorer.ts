@@ -168,7 +168,7 @@ export function scoreBook(
         // クエリがいずれかのスピンオフキーワードを含んでいるか？
         const queryHasSpinoffKw = SPINOFF_KEYWORDS.some(keyword => {
             const normalizedKw = keyword.replace(/[\s・]/g, '').toLowerCase();
-            return normalizedQuery.includes(normalizedKw);
+            return normalizedQuery.toLowerCase().includes(normalizedKw);
         });
 
         // 明示的な指定がない場合のみペナルティ適用

@@ -136,13 +136,15 @@ export function scoreBook(
         adultPenalty: 0,
     };
 
-    // 1. 完全一致ボーナス
-    if (checkExactTitleMatch(title, normalizedQuery)) {
+    // 1. Contains Match ボーナス（CF-03対応: Exact Matchから名称変更）
+    const hasContainsMatch = checkExactTitleMatch(title, normalizedQuery);
+    if (hasContainsMatch) {
         breakdown.exactTitleMatch = SCORES.EXACT_TITLE_MATCH;
     }
 
-    // 2. 巻数一致ボーナス
-    if (targetVolume !== null && volumeNumber === targetVolume) {
+    // 2. 巻数一致ボーナス（CF-08対応: タイトル一致条件を追加）
+    // 巻数ボーナスはタイトルが一致している場合のみ適用
+    if (targetVolume !== null && volumeNumber === targetVolume && hasContainsMatch) {
         breakdown.volumeMatch = SCORES.TARGET_VOLUME_MATCH;
     }
 

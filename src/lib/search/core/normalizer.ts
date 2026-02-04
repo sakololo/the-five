@@ -128,9 +128,14 @@ function normalizeCharacters(input: string): string {
 
 /**
  * エイリアス辞書からタイトルを解決する
+ * 
+ * First Token Only アプローチ:
+ * - 完全一致を優先
+ * - 複数トークンの場合、最初のトークンのみ完全一致でエイリアス解決
+ * - 部分一致は危険なため削除（ONE PIECEースバグの原因）
  */
 function resolveAlias(query: string, normalizedQuery: string): { resolved: string; key?: string } | null {
-    // 完全一致を優先
+    // Step 1: 完全一致を優先
     if (MANGA_ALIASES[normalizedQuery]) {
         return { resolved: MANGA_ALIASES[normalizedQuery], key: normalizedQuery };
     }
@@ -138,20 +143,20 @@ function resolveAlias(query: string, normalizedQuery: string): { resolved: strin
         return { resolved: MANGA_ALIASES[query], key: query };
     }
 
-    // 部分一致（最短キーを優先）
-    const queryLower = query.toLowerCase();
-    const normalizedLower = normalizedQuery.toLowerCase();
-
-    const partialMatches = Object.entries(MANGA_ALIASES).filter(([key]) => {
-        const keyLower = key.toLowerCase();
-        return keyLower.includes(normalizedLower) || normalizedLower.includes(keyLower) ||
-            keyLower.includes(queryLower) || queryLower.includes(keyLower);
-    });
-
-    if (partialMatches.length > 0) {
-        partialMatches.sort((a, b) => a[0].length - b[0].length);
-        return { resolved: partialMatches[0][1], key: partialMatches[0][0] };
+    // Step 2: First Token Only - 空白で分割し、最初のトークンのみ完全一致で解決
+    const tokens = normalizedQuery.split(/[\s　]+/).filter(t => t.length > 0);
+    if (tokens.length > 1) {
+        const firstToken = tokens[0];
+        if (MANGA_ALIASES[firstToken]) {
+            // 最初のトークンを解決し、残りを結合して返す
+            const resolvedFirst = MANGA_ALIASES[firstToken];
+            const remaining = tokens.slice(1).join(' ');
+            return { resolved: `${resolvedFirst} ${remaining}`, key: firstToken };
+        }
     }
+
+    // Step 3: 部分一致ロジックは削除（危険なため）
+    // 以前のコード: partialMatches による最短マッチ → ONE PIECEースバグの原因
 
     return null;
 }
@@ -191,6 +196,8 @@ export function normalizeSearchQuery(query: string): NormalizedQuery {
     const aliasResult = resolveAlias(cleanedQuery, normalizedChars);
 
     if (aliasResult) {
+        // First Token Only アプローチにより、aliasResult.resolved はすでに完全な正規化済みクエリ
+        // 部分置換ロジックは不要（ONE PIECEースバグの原因だった）
         return {
             normalized: aliasResult.resolved,
             normalizedForMatching: normalizeSeparators(aliasResult.resolved),

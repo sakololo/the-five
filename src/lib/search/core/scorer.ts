@@ -50,7 +50,7 @@ const SPINOFF_KEYWORDS = [
     'ガイドブック', 'ファンブック', 'キャラクターブック',
     '外伝', '小説版', 'ノベライズ', 'アンソロジー',
     'イラスト集', 'エピソードオブ',
-    'CHOPPER', 'チョッパー', "'s",
+    'CHOPPER', 'チョッパー',
 ];
 
 // アダルトコンテンツフィルタキーワード
@@ -162,8 +162,19 @@ export function scoreBook(
     }
 
     // 6. 番外編ペナルティ（External Auditor推奨）
+    // 修正: ユーザーが検索クエリで明示的にその単語を含めている場合はペナルティを適用しない
+    // Cross-Language対応: クエリに何らかのスピンオフキーワードが含まれていれば、ペナルティを解除する
     if (checkSpinoffKeywords(title)) {
-        breakdown.spinoffPenalty = SCORES.SPINOFF_PENALTY;
+        // クエリがいずれかのスピンオフキーワードを含んでいるか？
+        const queryHasSpinoffKw = SPINOFF_KEYWORDS.some(keyword => {
+            const normalizedKw = keyword.replace(/[\s・]/g, '').toLowerCase();
+            return normalizedQuery.includes(normalizedKw);
+        });
+
+        // 明示的な指定がない場合のみペナルティ適用
+        if (!queryHasSpinoffKw) {
+            breakdown.spinoffPenalty = SCORES.SPINOFF_PENALTY;
+        }
     }
 
     // 7. アダルトコンテンツペナルティ

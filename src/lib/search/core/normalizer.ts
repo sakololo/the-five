@@ -48,7 +48,8 @@ const SEPARATOR_CHARS = [
     '-', '−', '!', '！', '?', '？', '&', '＆',
     '〜', '～', '♪', '★', '☆', '#', '＃', '@', '＠',
     '(', ')', '（', '）', '[', ']', '【', '】',
-    `"`, `'`, `"`, `"`, `'`, `'`
+    `"`, `'`, `"`, `"`, `'`, `'`,
+    '_', '＿'
 ];
 
 const SEPARATOR_PATTERN = new RegExp(
@@ -104,7 +105,7 @@ function extractVolumeFromQuery(query: string): { volume: number | null; cleaned
 /**
  * 文字列を正規化する（カタカナ統一、半角全角統一など）
  */
-function normalizeCharacters(input: string): string {
+export function normalizeCharacters(input: string): string {
     let normalized = input.trim();
 
     // 全角英数字 → 半角（敵対的レビューで追加）

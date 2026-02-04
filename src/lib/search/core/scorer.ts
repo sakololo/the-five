@@ -4,7 +4,7 @@
  * 検索結果にスコアを付与し、ユーザーの意図に最も合致する順に並べる
  */
 
-import { extractVolumeNumber, normalizeSeparators } from './normalizer';
+import { extractVolumeNumber, normalizeSeparators, normalizeCharacters } from './normalizer';
 
 export interface BookData {
     title: string;
@@ -70,7 +70,7 @@ function checkExactTitleMatch(title: string, normalizedQuery: string): boolean {
         return false;
     }
 
-    const normalizedTitle = normalizeSeparators(title).toLowerCase();
+    const normalizedTitle = normalizeSeparators(normalizeCharacters(title)).toLowerCase();
     const normalizedQ = normalizedQuery.toLowerCase();
 
     // 1. 直接包含チェック（語順も一致）

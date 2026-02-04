@@ -34,14 +34,88 @@ export interface ScoreBreakdown {
 // スコアリング定数
 const SCORES = {
     EXACT_TITLE_MATCH: 50,
+    TOKEN_TITLE_MATCH: 30, // New: Token Match Bonus
     TARGET_VOLUME_MATCH: 100,
     VOLUME_1_BONUS: 20,
     SHORT_TITLE_BONUS: 10,
     EDITION_PENALTY: -5,
-    SPINOFF_PENALTY: -100,
+    SPINOFF_PENALTY: -30, // Relaxed from -100
     ADULT_CONTENT_PENALTY: -1000,
 };
 
+// ... (keywords remain same) ...
+
+/**
+ * トークンベースのマッチングチェック（スペース区切り対応）
+ * Contains Matchが不成立の場合に使用
+ */
+function checkTokenTitleMatch(title: string, normalizedQuery: string): boolean {
+    if (!normalizedQuery || normalizedQuery.trim() === '') return false;
+
+    // クエリを正規化して分割
+    const normalizedTitle = normalizeSeparators(normalizeCharacters(title)).toLowerCase();
+    const normalizedQ = normalizedQuery.toLowerCase();
+
+    // スペースで分割
+    const queryTokens = normalizedQ.split(/\s+/).filter(t => t.length > 0);
+    if (queryTokens.length < 2) return false; // 単語1つの場合はContains Matchでカバー済み
+
+    // 全てのトークンがタイトルに含まれるかチェック
+    return queryTokens.every(token => normalizedTitle.includes(token));
+}
+
+// ...
+
+const breakdown: ScoreBreakdown = {
+    exactTitleMatch: 0,
+    volumeMatch: 0, // This logic needs update in interface? No, just using map
+    volume1Bonus: 0,
+    shortTitleBonus: 0,
+    editionPenalty: 0,
+    spinoffPenalty: 0,
+    adultPenalty: 0,
+    // @ts-ignore - Dynamic property for breakdown
+    tokenTitleMatch: 0
+};
+
+// 1. Contains Match / Token Match ボーナス
+const hasContainsMatch = checkExactTitleMatch(title, normalizedQuery);
+if (hasContainsMatch) {
+    breakdown.exactTitleMatch = SCORES.EXACT_TITLE_MATCH;
+} else {
+    // Fallback: Token Match (e.g. "進撃 巨人")
+    const hasTokenMatch = checkTokenTitleMatch(title, normalizedQuery);
+    if (hasTokenMatch) {
+        // @ts-ignore
+        breakdown.tokenTitleMatch = SCORES.TOKEN_TITLE_MATCH;
+    }
+}
+
+const hasAnyMatch = hasContainsMatch || (breakdown as any).tokenTitleMatch > 0;
+
+// 2. 巻数一致ボーナス（CF-08対応: タイトル一致条件を追加）
+// 巻数ボーナスはタイトルが一致している場合のみ適用
+if (targetVolume !== null && volumeNumber === targetVolume && hasAnyMatch) {
+    breakdown.volumeMatch = SCORES.TARGET_VOLUME_MATCH;
+}
+
+// ...
+
+// 6. 番外編ペナルティ（External Auditor推奨）
+if (checkSpinoffKeywords(title)) {
+    // クエリがいずれかのスピンオフキーワードを含んでいるか？
+    const queryHasSpinoffKw = SPINOFF_KEYWORDS.some(keyword => {
+        const normalizedKw = keyword.replace(/[\s・]/g, '').toLowerCase();
+        return normalizedQuery.toLowerCase().includes(normalizedKw);
+    });
+
+    // 明示的な指定がない場合のみペナルティ適用
+    if (!queryHasSpinoffKw) {
+        breakdown.spinoffPenalty = SCORES.SPINOFF_PENALTY;
+    }
+}
+
+// ... (constants)
 // 版型ペナルティ対象キーワード
 const EDITION_KEYWORDS = ['文庫', '愛蔵版', 'ワイド版', '新装版', 'デラックス', 'DX'];
 
@@ -51,6 +125,7 @@ const SPINOFF_KEYWORDS = [
     '外伝', '小説版', 'ノベライズ', 'アンソロジー',
     'イラスト集', 'エピソードオブ',
     'CHOPPER', 'チョッパー',
+    '総集編', '劇場版', 'コミカライズ' // V4: Added missing keywords
 ];
 
 // アダルトコンテンツフィルタキーワード
@@ -79,6 +154,8 @@ function checkExactTitleMatch(title: string, normalizedQuery: string): boolean {
     }
 
     // 2. トークン比較（語順無視、フォールバック）
+    // NOTE: This logic is partially redundant with checkTokenTitleMatch but stricter (all tokens must exist)
+    // checkExactTitleMatch is for "High Quality Match" (+50)
     const titleTokens = normalizedTitle.split(' ').filter(t => t.length > 0);
     const queryTokens = normalizedQ.split(' ').filter(t => t.length > 0);
 
@@ -87,6 +164,25 @@ function checkExactTitleMatch(title: string, normalizedQuery: string): boolean {
     }
 
     return queryTokens.every(qt => titleTokens.some(tt => tt.includes(qt)));
+}
+
+/**
+ * トークンベースのマッチングチェック（スペース区切り対応）
+ * Contains Matchが不成立の場合に使用
+ */
+function checkTokenTitleMatch(title: string, normalizedQuery: string): boolean {
+    if (!normalizedQuery || normalizedQuery.trim() === '') return false;
+
+    // クエリを正規化して分割
+    const normalizedTitle = normalizeSeparators(normalizeCharacters(title)).toLowerCase();
+    const normalizedQ = normalizedQuery.toLowerCase();
+
+    // スペースで分割
+    const queryTokens = normalizedQ.split(/\s+/).filter(t => t.length > 0);
+    if (queryTokens.length < 2) return false; // 単語1つの場合はContains Matchでカバー済み
+
+    // 全てのトークンがタイトルに含まれるかチェック
+    return queryTokens.every(token => normalizedTitle.includes(token));
 }
 
 /**

@@ -221,6 +221,13 @@ export function normalizeSearchQuery(query: string): NormalizedQuery {
 /**
  * タイトルから巻数を抽出する（検索結果の本に対して使用）
  */
+const MAX_QUERY_LENGTH = 100;
+
+export function truncateQuery(query: string): string {
+    if (!query) return '';
+    return query.length > MAX_QUERY_LENGTH ? query.slice(0, MAX_QUERY_LENGTH) : query;
+}
+
 export function extractVolumeNumber(title: string): number | null {
     if (typeof title !== 'string') return null;
 

@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# development scripts (audit, debug, test utilities)
+scripts/debug_*.ts
+scripts/verify_*.ts
+scripts/test_*.ts
+scripts/*_audit.ts

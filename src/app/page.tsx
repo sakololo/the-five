@@ -1256,7 +1256,7 @@ export default function Home() {
                           document.getElementById('search-results')?.scrollIntoView({ behavior: 'smooth' });
                         }
                       }}
-                      placeholder="タイトルや作者名で検索"
+                      placeholder="タイトルで検索"
                       className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-gray-700 font-medium placeholder:text-gray-400 placeholder:text-xs sm:placeholder:text-base text-base"
                     />
                     {searchQuery && (

@@ -29,13 +29,11 @@ export interface ScoreBreakdown {
     editionPenalty: number;
     spinoffPenalty: number;
     adultPenalty: number;
-    tokenTitleMatch: number;
 }
 
 // スコアリング定数
 const SCORES = {
     EXACT_TITLE_MATCH: 50,
-    TOKEN_TITLE_MATCH: 30, // New: Token Match Bonus
     TARGET_VOLUME_MATCH: 100,
     VOLUME_1_BONUS: 20,
     SHORT_TITLE_BONUS: 10,
@@ -61,24 +59,7 @@ const ADULT_KEYWORDS = [
     'エロ', 'アダルト', '18禁', 'R18', 'R-18',
 ];
 
-/**
- * トークンベースのマッチングチェック（スペース区切り対応）
- * Contains Matchが不成立の場合に使用
- */
-function checkTokenTitleMatch(title: string, normalizedQuery: string): boolean {
-    if (!normalizedQuery || normalizedQuery.trim() === '') return false;
 
-    // クエリを正規化して分割
-    const normalizedTitle = normalizeSeparators(normalizeCharacters(title)).toLowerCase();
-    const normalizedQ = normalizedQuery.toLowerCase();
-
-    // スペースで分割
-    const queryTokens = normalizedQ.split(/\s+/).filter(t => t.length > 0);
-    if (queryTokens.length < 2) return false; // 単語1つの場合はContains Matchでカバー済み
-
-    // 全てのトークンがタイトルに含まれるかチェック
-    return queryTokens.every(token => normalizedTitle.includes(token));
-}
 
 /**
  * タイトルが正規化クエリを含むかチェック（敵対的レビューで強化）
@@ -158,26 +139,17 @@ export function scoreBook(
         editionPenalty: 0,
         spinoffPenalty: 0,
         adultPenalty: 0,
-        tokenTitleMatch: 0,
     };
 
-    // 1. Contains Match / Token Match ボーナス
+    // 1. Contains Match ボーナス
     const hasContainsMatch = checkExactTitleMatch(title, normalizedQuery);
     if (hasContainsMatch) {
         breakdown.exactTitleMatch = SCORES.EXACT_TITLE_MATCH;
-    } else {
-        // Fallback: Token Match (e.g. "進撃 巨人")
-        const hasTokenMatch = checkTokenTitleMatch(title, normalizedQuery);
-        if (hasTokenMatch) {
-            breakdown.tokenTitleMatch = SCORES.TOKEN_TITLE_MATCH;
-        }
     }
-
-    const hasAnyMatch = hasContainsMatch || breakdown.tokenTitleMatch > 0;
 
     // 2. 巻数一致ボーナス（CF-08対応: タイトル一致条件を追加）
     // 巻数ボーナスはタイトルが一致している場合のみ適用
-    if (targetVolume !== null && volumeNumber === targetVolume && hasAnyMatch) {
+    if (targetVolume !== null && volumeNumber === targetVolume && hasContainsMatch) {
         breakdown.volumeMatch = SCORES.TARGET_VOLUME_MATCH;
     }
 
@@ -203,8 +175,7 @@ export function scoreBook(
         breakdown.shortTitleBonus +
         breakdown.editionPenalty +
         breakdown.spinoffPenalty +
-        breakdown.adultPenalty +
-        breakdown.tokenTitleMatch;
+        breakdown.adultPenalty;
 
     return {
         ...book,

@@ -66,58 +66,58 @@ export default async function ShelfPage({ params }: PageProps) {
         notFound();
     }
 
-    const categoryTitle = shelf.category === 'recommend'
+    const categorySubtitle = shelf.category === 'recommend'
         ? '今読んでほしい、5冊。'
-        : '私を形作る、5冊。';
+        : '私が選んだ、5つの物語。';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* Header */}
-                <header className="text-center mb-8">
-                    <a href="/" className="inline-block cursor-pointer">
-                        <h1
-                            className="text-4xl font-bold tracking-wide"
-                            style={{
-                                fontFamily: "'Permanent Marker', cursive",
-                                fontStyle: 'italic',
-                                transform: 'skewX(-8deg)',
-                            }}
-                        >
-                            THE FIVE
-                        </h1>
-                    </a>
-                    <p
-                        className="text-lg text-gray-700 mt-4 font-medium"
-                        style={{ fontFamily: "'Kaisei Tokumin', serif" }}
-                    >
-                        {categoryTitle}
-                    </p>
-                </header>
-
-                {/* Shelf Display */}
-                <ShelfDisplay shelf={shelf} />
-
-                {/* Hint */}
-                <p className="text-center text-sm text-gray-500 mt-4">
-                    本の表紙をタップすると、<br />楽天の購入ページへ移動します。
+        <div
+            className="min-h-screen flex flex-col items-center py-16 sm:py-24 font-serif text-gray-800"
+            style={{ backgroundColor: '#F9F9F9' }}
+        >
+            {/* Museum Header */}
+            <div className="mb-24 sm:mb-32 text-center px-6">
+                <p className="text-[10px] text-gray-400 tracking-[0.3em] uppercase mb-4">
+                    THE FIVE
                 </p>
-
-                {/* Call to Action */}
-                <div className="text-center mt-12">
-                    <a
-                        href="/"
-                        className="inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold text-lg shadow-xl hover:from-blue-700 hover:to-indigo-700 transition transform hover:scale-105"
-                    >
-                        あなたの5冊を選ぶ
-                    </a>
-                </div>
-
-                {/* Footer */}
-                <footer className="text-center mt-16 py-8 border-t border-gray-200">
-                    <p className="text-sm text-gray-500">THE FIVE © 2026</p>
-                </footer>
+                <h1
+                    className="text-lg sm:text-xl font-medium tracking-widest leading-relaxed"
+                    style={{ fontFamily: "'Shippori Mincho', serif" }}
+                >
+                    {categorySubtitle.split('、').map((part, i) => (
+                        <span key={i}>
+                            {part}{i === 0 && <br />}
+                        </span>
+                    ))}
+                </h1>
+                {/* Vertical divider line */}
+                <div className="w-px h-12 sm:h-16 bg-gray-200 mx-auto mt-8 sm:mt-10" />
+                {/* Hint text */}
+                <p className="text-[11px] sm:text-xs text-gray-400 mt-6 tracking-wide">
+                    本の表紙をタップすると、楽天の購入ページへ移動します。
+                </p>
             </div>
+
+            {/* Books - Museum Gallery */}
+            <ShelfDisplay shelf={shelf} />
+
+            {/* Call to Action - Minimal */}
+            <div className="mt-16 sm:mt-20 mb-16 sm:mb-20 text-center">
+                <p className="text-xs text-gray-400 mb-6 tracking-widest">
+                    あなたも、本棚を作りませんか？
+                </p>
+                <a
+                    href="/"
+                    className="inline-block bg-black text-white px-8 py-3 rounded-full text-xs tracking-widest shadow-xl hover:scale-105 transition-transform"
+                >
+                    自分の5冊を選ぶ
+                </a>
+            </div>
+
+            {/* Footer - Minimal */}
+            <footer className="text-center py-8">
+                <p className="text-[10px] text-gray-300 tracking-widest">THE FIVE © 2026</p>
+            </footer>
         </div>
     );
 }

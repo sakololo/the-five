@@ -1053,8 +1053,8 @@ export default function Home() {
                 className="text-sm mt-4 opacity-70 leading-relaxed"
                 style={{ fontFamily: "'Kaisei Tokumin', serif" }}
               >
-                人生で最も記憶に残っている本、<br className="sm:hidden" />
-                あるいは今おすすめしたい本を５冊選んで、<br />
+                人生で最も記憶に残っているマンガ、<br className="sm:hidden" />
+                今おすすめしたいマンガを５冊選んで、<br />
                 あなただけの本棚を作りましょう。
               </p>
             </div>
@@ -1095,7 +1095,7 @@ export default function Home() {
           <section className="mb-8">
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-gray-800 mb-1">プレビュー</h2>
-              <p className="text-sm text-gray-500">完成イメージをリアルタイムで確認</p>
+              <p className="text-sm text-gray-500">この順番で表紙が並びます</p>
               <p className="text-xs text-gray-400 mt-1 md:hidden">※ ドラッグで順番を変更できます</p>
             </div>
 

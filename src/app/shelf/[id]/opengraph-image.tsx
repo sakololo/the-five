@@ -38,8 +38,8 @@ export default async function Image({ params }: Props) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: '#1a1a2e',
-                            color: 'white',
+                            backgroundColor: '#F9F9F9',
+                            color: '#333',
                             fontSize: 48,
                             fontWeight: 'bold',
                         }}
@@ -51,171 +51,31 @@ export default async function Image({ params }: Props) {
             );
         }
 
+        // カテゴリに応じた静的OGP画像を返す
+        // 画像ファイル: public/og/my-five.png, public/og/recommend.png
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://the-five-beige.vercel.app';
+        const ogImagePath = shelf.category === 'recommend'
+            ? '/og/recommend.png'
+            : '/og/my-five.png';
+        const imageUrl = `${siteUrl}${ogImagePath}`;
 
-        // gallery スタイル固定（本棚テーマは著作権配慮で削除済み）
-        const categoryTitle = shelf.category === 'recommend'
-            ? '今読んでほしい、5冊。'
-            : '私を形作る、5冊。';
-        const englishTitle = shelf.category === 'recommend'
-            ? 'Recommended Books'
-            : 'My Best Five';
+        console.log('[OGP] Redirecting to static image:', imageUrl);
 
+        // 静的画像を読み込んでそのまま返す
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch OGP image: ${imageResponse.status}`);
+        }
 
-        // Always use Minimal (gallery) theme - white card design for OGP to ensure high visibility and compliance
-        console.log('[OGP] Generating image with', shelf.books.length, 'books');
-        return new ImageResponse(
-            (
-                <div
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#FAF9F6',
-                        padding: 40,
-                    }}
-                >
-                    {/* White Card */}
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            backgroundColor: 'white',
-                            borderRadius: 24,
-                            boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
-                            padding: 40,
-                            width: 1100,
-                            height: 550,
-                        }}
-                    >
-                        {/* Title */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 42,
-                                    fontWeight: 300,
-                                    color: '#1A1A1A',
-                                    letterSpacing: '0.05em',
-                                }}
-                            >
-                                {englishTitle}
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: 22,
-                                    color: '#666',
-                                    letterSpacing: '0.15em',
-                                    marginTop: 8,
-                                }}
-                            >
-                                {categoryTitle}
-                            </div>
-                        </div>
+        const imageBuffer = await imageResponse.arrayBuffer();
 
-                        {/* Books */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                gap: 28,
-                            }}
-                        >
-                            {shelf.books.map((book, index) => {
-                                const isFeatured = index === 2;
-                                const width = isFeatured ? 160 : 120;
-                                const height = isFeatured ? 240 : 180;
+        return new Response(imageBuffer, {
+            headers: {
+                'Content-Type': 'image/png',
+                'Cache-Control': 'public, max-age=31536000, immutable',
+            },
+        });
 
-                                return (
-                                    <div
-                                        key={`${book.id}-${book.volume}`}
-                                        style={{
-                                            width,
-                                            height,
-                                            borderRadius: 8,
-                                            overflow: 'hidden',
-                                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                                            display: 'flex',
-                                            backgroundColor: book.coverUrl ? 'transparent' : '#ddd',
-                                        }}
-                                    >
-                                        {book.coverUrl ? (
-                                            <img
-                                                src={book.coverUrl}
-                                                alt={book.title}
-                                                width={width}
-                                                height={height}
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    objectFit: 'contain',
-                                                }}
-                                            />
-                                        ) : (
-                                            <div
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    backgroundColor: '#e0e0e0',
-                                                    color: '#666',
-                                                    fontSize: 14,
-                                                }}
-                                            >
-                                                No Image
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Footer */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                width: '100%',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 18,
-                                    fontWeight: 'bold',
-                                    color: '#aaa',
-                                }}
-                            >
-                                THE FIVE
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: 16,
-                                    color: '#bbb',
-                                }}
-                            >
-                                {new Date(shelf.created_at || Date.now()).toLocaleDateString('ja-JP', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                }).replace(/\//g, '.')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ),
-            { ...size }
-        );
     } catch (error) {
         console.error('[OGP] Fatal error generating image:', error);
         // Return error image
@@ -229,8 +89,8 @@ export default async function Image({ params }: Props) {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#dc2626',
-                        color: 'white',
+                        backgroundColor: '#F9F9F9',
+                        color: '#333',
                         fontSize: 32,
                         fontWeight: 'bold',
                         padding: 40,
@@ -238,9 +98,6 @@ export default async function Image({ params }: Props) {
                 >
                     <div>THE FIVE</div>
                     <div style={{ fontSize: 24, marginTop: 20 }}>画像生成エラー</div>
-                    <div style={{ fontSize: 16, marginTop: 10, fontWeight: 'normal' }}>
-                        {error instanceof Error ? error.message : 'Unknown error'}
-                    </div>
                 </div>
             ),
             { ...size }

@@ -923,7 +923,8 @@ export default function Home() {
       const shelfUrl = `${siteUrl}/shelf/${shelfId}`;
 
       // Generate smart share text with book titles
-      const MAX_TWITTER_LENGTH = 140;
+      // 100点の並び順: タイトル → 空行 → 決め台詞+ハッシュタグ → 空行 → URL（最後）
+      const MAX_TWITTER_LENGTH = 280;
       const URL_RESERVED_LENGTH = 23; // t.co shortened URL length
       const BUFFER = 5; // Safety buffer
 
@@ -933,36 +934,34 @@ export default function Home() {
         return title.length > 15 ? title.substring(0, 15) + '...' : title;
       });
 
-      // Create header based on category
-      const header = category === 'recommend'
-        ? '『今読んでほしい5冊』を選びました。\n\n'
-        : '『私を形作る5冊』を選びました。\n\n';
-
-      // Footer with hashtag
-      const footer = '\n\n#わたしの五冊 #おすすめの５冊';
+      // Create tagline based on category
+      const tagline = category === 'recommend'
+        ? '今読んでほしい、5つのマンガ。 #THE_FIVE'
+        : '私を構成する、5つのマンガ。 #THE_FIVE';
 
       // Calculate available length for book list
-      const availableLength = MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - header.length - footer.length - BUFFER;
+      const availableLength = MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - tagline.length - 6 - BUFFER; // 6 = 空行x2
 
       // Try to fit all books, otherwise reduce
       let bookListText = '';
-      let finalText = '';
 
-      // Pattern A: All 5 books
-      const fullList = bookTitles.map(t => `・${t}`).join('\n');
-      if ((header + fullList + footer).length <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
+      // Pattern A: All 5 books (改行区切り、・なし)
+      const fullList = bookTitles.join('\n');
+      if (fullList.length + tagline.length + 6 <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
         bookListText = fullList;
       }
-      // Pattern B: 4 books + "ほか1冊"
-      else if ((header + bookTitles.slice(0, 4).map(t => `・${t}`).join('\n') + '\n・ほか1冊' + footer).length <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
-        bookListText = bookTitles.slice(0, 4).map(t => `・${t}`).join('\n') + '\n・ほか1冊';
+      // Pattern B: 4 books + "ほか1作"
+      else if ((bookTitles.slice(0, 4).join('\n') + '\nほか1作').length + tagline.length + 6 <= MAX_TWITTER_LENGTH - URL_RESERVED_LENGTH - BUFFER) {
+        bookListText = bookTitles.slice(0, 4).join('\n') + '\nほか1作';
       }
-      // Pattern C: 3 books + "ほか2冊"
+      // Pattern C: 3 books + "ほか2作"
       else {
-        bookListText = bookTitles.slice(0, 3).map(t => `・${t}`).join('\n') + '\n・ほか2冊';
+        bookListText = bookTitles.slice(0, 3).join('\n') + '\nほか2作';
       }
 
-      finalText = header + bookListText + footer;
+      // 100点の並び順: タイトル → 空行 → 決め台詞+ハッシュタグ
+      // URLは別パラメータで最後に追加
+      const finalText = `${bookListText}\n\n${tagline}`;
 
       const shareText = encodeURIComponent(finalText);
       const encodedUrl = encodeURIComponent(shelfUrl);
@@ -972,8 +971,9 @@ export default function Home() {
 
       if (isNativeMobileDevice) {
         // Try X app first with intent URL
-        const xAppUrl = `twitter://post?message=${shareText}%20${encodedUrl}`;
-        const webUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;
+        // URLを最後に配置（text内ではなくurl=パラメータで）
+        const xAppUrl = `twitter://post?message=${shareText}%0A%0A${encodedUrl}`;
+        const webUrl = `https://twitter.com/intent/tweet?text=${shareText}%0A%0A&url=${encodedUrl}`;
 
         // Create a hidden iframe to try the app URL
         const iframe = document.createElement('iframe');
@@ -993,7 +993,8 @@ export default function Home() {
         }, 1500);
       } else {
         // Desktop: open in new tab
-        const xUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;
+        // URLを最後に配置
+        const xUrl = `https://twitter.com/intent/tweet?text=${shareText}%0A%0A&url=${encodedUrl}`;
         window.open(xUrl, '_blank');
       }
 

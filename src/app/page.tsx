@@ -255,24 +255,23 @@ function SortableBookItem({ book, index, onRemove }: SortableBookItemProps) {
     opacity: isDragging ? 0.8 : 1,
   };
 
-  const isFeatured = index === 2;
-  const baseSize = isFeatured
-    ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
-    : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
+  // 拡大サイズ（モバイル100px幅 → 表紙が認識できるギリギリのサイズ）
+  // 比率 2:3 (幅:高さ) で書籍カバーに最適
+  const baseSize = 'w-[100px] h-[150px] sm:w-28 sm:h-[168px] md:w-36 md:h-[216px]';
 
-  // 影スタイル（ギャラリーモード固定）
-  const shadowStyle = 'shadow-lg hover:shadow-xl';
+  // フローティングシャドウ（美術館スタイル）
+  const shadowStyle = 'shadow-lg hover:shadow-2xl';
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-col items-center gap-2 relative group"
+      className="flex flex-col items-center gap-1 relative group"
     >
       <div
         {...attributes}
         {...listeners}
-        className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded ${shadowStyle} hover:scale-105 hover:-translate-y-2 transition-all cursor-grab active:cursor-grabbing border-2 border-white overflow-hidden relative`}
+        className={`${baseSize} bg-gradient-to-br ${book.manga.coverColor} rounded-lg ${shadowStyle} hover:scale-105 hover:-translate-y-1 transition-all cursor-grab active:cursor-grabbing border border-white/50 overflow-hidden relative`}
       >
         <img src={book.manga.coverUrlPerVolume?.[book.volume] ?? book.manga.coverUrl} alt={book.manga.title} className="w-full h-full object-contain" />
         {/* Remove button - Always visible on mobile, hover on desktop */}
@@ -286,7 +285,7 @@ function SortableBookItem({ book, index, onRemove }: SortableBookItemProps) {
           <span className="text-gray-700 text-[10px] sm:text-xs font-bold">×</span>
         </button>
       </div>
-      <span className="text-[9px] font-medium text-gray-400">{book.volume}巻</span>
+      <span className="text-[8px] sm:text-[9px] font-medium text-gray-400">{book.volume}巻</span>
     </div>
   );
 }
@@ -1101,7 +1100,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center w-full px-2 md:px-0">
-              <div className="relative w-full max-w-4xl aspect-video md:aspect-auto md:h-[500px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 border-gray-200 bg-white">
+              <div className="relative w-full max-w-4xl min-h-[420px] sm:min-h-[460px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-all duration-300 border-gray-200 bg-white">
                 {/* Background - gallery style */}
                 <div className="absolute inset-0" style={{ backgroundColor: '#FAF9F6' }} />
 
@@ -1118,8 +1117,8 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Books Area with Drag and Drop */}
-                <div className="relative z-10 flex-1 p-4 md:p-6 pb-6 md:pb-8 flex flex-col items-center justify-center">
+                {/* Books Area with Drag and Drop - Museum Gallery Style */}
+                <div className="relative z-10 flex-1 p-4 md:p-8 flex flex-col items-center justify-center gap-4 md:gap-6">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -1129,56 +1128,84 @@ export default function Home() {
                       items={selectedBooks.map((b) => `${b.manga.id}-${b.volume}`)}
                       strategy={horizontalListSortingStrategy}
                     >
-                      <div className="flex items-end gap-2 md:gap-7 px-2 md:px-16 w-full justify-center">
-                        {Array.from({ length: 5 }, (_, i) => {
-                          const book = selectedBooks[i];
-                          const isFeatured = i === 2;
-                          const baseSize = isFeatured
-                            ? 'w-16 h-24 sm:w-24 sm:h-36 md:w-40 md:h-60'
-                            : 'w-12 h-20 sm:w-20 sm:h-30 md:w-32 md:h-48';
+                      {/* 2-row layout: Top row (3 books), Bottom row (2 books) */}
+                      <div className="flex flex-col items-center gap-4 md:gap-8 w-full">
+                        {/* Top Row - 3 books */}
+                        <div className="flex items-center justify-center gap-3 md:gap-8">
+                          {[0, 1, 2].map((i) => {
+                            const book = selectedBooks[i];
+                            const baseSize = 'w-[100px] h-[150px] sm:w-28 sm:h-[168px] md:w-36 md:h-[216px]';
 
-                          if (book) {
-                            return (
-                              <SortableBookItem
-                                key={`${book.manga.id}-${book.volume}`}
-                                book={book}
-                                index={i}
-                                onRemove={removeBook}
-                              />
-                            );
-                          } else {
-                            return (
-                              <div key={`empty-${i}`} className="flex flex-col items-center gap-2">
-                                <div
-                                  className={`${baseSize} rounded shadow-inner border-2 border-dashed border-gray-300 bg-white/30 flex items-center justify-center`}
-                                >
-                                  <span className="text-2xl font-light text-gray-300">{i + 1}</span>
+                            if (book) {
+                              return (
+                                <SortableBookItem
+                                  key={`${book.manga.id}-${book.volume}`}
+                                  book={book}
+                                  index={i}
+                                  onRemove={removeBook}
+                                />
+                              );
+                            } else {
+                              return (
+                                <div key={`empty-${i}`} className="flex flex-col items-center gap-1">
+                                  <div
+                                    className={`${baseSize} rounded-lg border-2 border-dashed border-gray-200 bg-white/50 flex items-center justify-center shadow-sm`}
+                                  >
+                                    <span className="text-xl font-extralight text-gray-300">{i + 1}</span>
+                                  </div>
                                 </div>
-                                <span className="text-[9px] font-medium text-gray-300">—</span>
-                              </div>
-                            );
-                          }
-                        })}
+                              );
+                            }
+                          })}
+                        </div>
+                        {/* Bottom Row - 2 books */}
+                        <div className="flex items-center justify-center gap-3 md:gap-8">
+                          {[3, 4].map((i) => {
+                            const book = selectedBooks[i];
+                            const baseSize = 'w-[100px] h-[150px] sm:w-28 sm:h-[168px] md:w-36 md:h-[216px]';
+
+                            if (book) {
+                              return (
+                                <SortableBookItem
+                                  key={`${book.manga.id}-${book.volume}`}
+                                  book={book}
+                                  index={i}
+                                  onRemove={removeBook}
+                                />
+                              );
+                            } else {
+                              return (
+                                <div key={`empty-${i}`} className="flex flex-col items-center gap-1">
+                                  <div
+                                    className={`${baseSize} rounded-lg border-2 border-dashed border-gray-200 bg-white/50 flex items-center justify-center shadow-sm`}
+                                  >
+                                    <span className="text-xl font-extralight text-gray-300">{i + 1}</span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })}
+                        </div>
                       </div>
                     </SortableContext>
                   </DndContext>
 
                   {/* Instruction Text */}
-                  <div className="text-center mt-4">
-                    <p className="text-sm text-gray-500">
+                  <div className="text-center mt-2">
+                    <p className="text-xs sm:text-sm text-gray-400">
                       {selectedBooks.length === 5 ? (
                         <>
                           {/* Mobile: show long-press message */}
-                          <span className="sm:hidden animate-pulse text-blue-500">
-                            長押しで並び替えできます
+                          <span className="sm:hidden animate-pulse text-blue-400">
+                            長押しで並び替え
                           </span>
                           {/* Desktop: show drag message */}
-                          <span className="hidden sm:inline animate-pulse text-blue-500">
-                            ドラッグで並び替えできます
+                          <span className="hidden sm:inline animate-pulse text-blue-400">
+                            ドラッグで並び替え
                           </span>
                         </>
                       ) : (
-                        <>本を選んでください（{selectedBooks.length}/5冊）</>
+                        <span className="text-gray-400">本を選んでください（{selectedBooks.length}/5冊）</span>
                       )}
                     </p>
                   </div>

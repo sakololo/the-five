@@ -8,9 +8,12 @@ import Link from 'next/link';
 import popularMangaData from '@/data/popular-manga.json';
 import { ONE_PIECE_VOLUMES, isOnePiece, getOnePieceCoverUrl } from '@/data/onepiece-volumes';
 import type { SearchState, SearchApiResponse } from '@/types/search';
+import { extractVolumeNumber } from '@/lib/search/core/volume-parser';
+import type { Book } from '@/types/book';
 
 import {
   DndContext,
+
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -45,20 +48,6 @@ const RECOMMENDED_MANGA = [
   { title: 'ハイキュー!!', author: '古舘春一', category: '人気作品' },
 ];
 // Types
-interface Book {
-  id: string;
-  title: string;
-  reading: string; // ひらがな読み（検索用）
-  author: string;
-  coverUrl: string;
-  genre: string;
-  totalVolumes: number;
-  coverColor: string;
-  itemUrl?: string; // 楽天ブックスの販売ページURL
-  publisher?: string; // 出版社
-  coverUrlPerVolume?: Record<number, string>; // 巻ごとの書影マップ
-}
-
 const PUBLISHERS = ['all', '集英社', '講談社', '小学館', 'KADOKAWA', 'スクウェア・エニックス', '白泉社'];
 
 interface SelectedBook {
@@ -83,36 +72,9 @@ function useIsMobile() {
   return isMobile;
 }
 
-// ===== Issue #2: Volume number extractor =====
-function extractVolumeNumber(title: string): number | null {
-  if (!title) return null;
+// ===== Volume Parser imported from @/lib/search/core/volume-parser =====
+// 以前の extractVolumeNumber は削除されました
 
-  const normalized = title.replace(/[０-９]/g, s =>
-    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
-  );
-
-  const patterns = [
-    /第(\d+)巻/,
-    /(\d+)巻/,
-    /\((\d+)\)/,
-    /（(\d+)）/,
-    /〈(\d+)〉/,
-    /【(\d+)】/,
-    /vol\.?\s*(\d+)/i,
-    /#(\d+)/,
-    /\s-\s*(\d+)$/,
-    /\s(\d+)$/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = normalized.match(pattern);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      return isNaN(num) ? null : num;
-    }
-  }
-  return null;
-}
 
 // Mock manga data (same as mockup)
 const MOCK_MANGA_DATA: Book[] = [
@@ -739,17 +701,25 @@ export default function Home() {
   }, [searchQuery]);
 
   // Fetch volumes for a manga from API (max 30 volumes)
+  // Fetch volumes for a manga from API (max 30 volumes)
   const fetchVolumesForManga = async (manga: Book) => {
     // Skip if already fetched
     if (volumeData[manga.id]) return;
 
     setLoadingVolumes(true);
     try {
-      // Simple title cleaning for volume search (remove volume numbers like " 10", " Vol.1")
-      const baseTitle = manga.title.replace(/\s?(第?\d+巻?|vol\.?\d+|\(\d+\)|（\d+）)$/i, '').trim();
+      // 1. Prepare search query for volumes
+      // Use reading (kana) if available, otherwise clean up the title
+      let searchQuery = manga.reading || '';
 
-      // ワンピースの場合はハードコードデータを優先使用
-      if (isOnePiece(baseTitle) || baseTitle.includes('ONE PIECE') || baseTitle.includes('ワンピース')) {
+      if (!searchQuery) {
+        // Remove volume numbers to get the series title
+        const baseTitle = manga.title.replace(/\s?(第?\d+巻?|vol\.?\d+|\(\d+\)|（\d+）)$/i, '').trim();
+        searchQuery = baseTitle;
+      }
+
+      // 2. Handle ONE PIECE specifically (Hardcoded data is trusted)
+      if (isOnePiece(manga.title) || manga.title.includes('ONE PIECE') || manga.title.includes('ワンピース')) {
         const onePieceBooks: Book[] = ONE_PIECE_VOLUMES.map(v => ({
           id: v.isbn,
           title: v.title,
@@ -760,6 +730,7 @@ export default function Home() {
           totalVolumes: 110,
           coverColor: 'from-red-400 to-orange-500',
           itemUrl: `https://books.rakuten.co.jp/rb/${v.isbn}/`,
+          volumeNumber: extractVolumeNumber(v.title),
         }));
 
         setVolumeData(prev => ({
@@ -770,25 +741,28 @@ export default function Home() {
         return;
       }
 
-      const response = await fetch(`/api/search?q=${encodeURIComponent(baseTitle)}`);
+      // 3. Call the dedicated Volumes API
+      // This API handles titleKana search and volume sorting
+      const response = await fetch(`/api/volumes?titleKana=${encodeURIComponent(searchQuery)}`);
 
       if (!response.ok) {
-        console.error('Failed to fetch volumes');
-        return;
+        throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
       const volumes: Book[] = data.books || [];
 
-      // Limit to first 30 volumes (API max)
-      const limitedVolumes = volumes.slice(0, 30);
-
+      // 4. Update State
+      // The API already returns sorted volumes (hits=30 max)
       setVolumeData(prev => ({
         ...prev,
-        [manga.id]: limitedVolumes
+        [manga.id]: volumes
       }));
+
     } catch (error) {
       console.error('Error fetching volumes:', error);
+      // Fallback: show empty state or error message?
+      // For now, allow empty state to show naturally
     } finally {
       setLoadingVolumes(false);
     }

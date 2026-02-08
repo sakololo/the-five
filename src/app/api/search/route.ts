@@ -425,8 +425,7 @@ export async function GET(request: NextRequest) {
     // Remove items that have ZERO match relevancy (only bonus points like Vol 1).
     // "asdf" -> Score 30 (Vol1+Short) -> Removed because textMatch is 0.
     filteredBooks = filteredBooks.filter(book =>
-      book.scoreBreakdown.exactTitleMatch > 0 ||
-      book.scoreBreakdown.tokenTitleMatch > 0
+      book.scoreBreakdown.exactTitleMatch > 0
     );
 
     // Relative Quality Filter (If we have a good match, be stricter)

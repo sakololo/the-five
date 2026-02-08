@@ -368,6 +368,9 @@ export default function Home() {
   const [volumeData, setVolumeData] = useState<Record<string, Book[]>>({});
   const [loadingVolumes, setLoadingVolumes] = useState(false);
 
+  // AbortController for canceling volume fetch requests (競合状態対策)
+  const volumeFetchControllerRef = useRef<AbortController | null>(null);
+
   // Disabled: Fetch initial popular manga on page load
   // We now show MOCK_MANGA_DATA initially for faster load and no API errors
   /*
@@ -701,10 +704,16 @@ export default function Home() {
   }, [searchQuery]);
 
   // Fetch volumes for a manga from API (max 30 volumes)
-  // Fetch volumes for a manga from API (max 30 volumes)
   const fetchVolumesForManga = async (manga: Book) => {
     // Skip if already fetched
     if (volumeData[manga.id]) return;
+
+    // Cancel any previous request (競合状態対策)
+    if (volumeFetchControllerRef.current) {
+      volumeFetchControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    volumeFetchControllerRef.current = controller;
 
     setLoadingVolumes(true);
     try {
@@ -741,9 +750,11 @@ export default function Home() {
         return;
       }
 
-      // 3. Call the dedicated Volumes API
-      // This API handles titleKana search and volume sorting
-      const response = await fetch(`/api/volumes?titleKana=${encodeURIComponent(searchQuery)}`);
+      // 3. Call the dedicated Volumes API with AbortController
+      const response = await fetch(
+        `/api/volumes?titleKana=${encodeURIComponent(searchQuery)}`,
+        { signal: controller.signal }
+      );
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
@@ -752,24 +763,39 @@ export default function Home() {
       const data = await response.json();
       const volumes: Book[] = data.books || [];
 
-      // 4. Update State
-      // The API already returns sorted volumes (hits=30 max)
-      setVolumeData(prev => ({
-        ...prev,
-        [manga.id]: volumes
-      }));
+      // 4. Update State (only if not aborted)
+      if (!controller.signal.aborted) {
+        setVolumeData(prev => ({
+          ...prev,
+          [manga.id]: volumes
+        }));
+      }
 
     } catch (error) {
+      // Ignore AbortError (expected when user clicks another item)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Volume fetch aborted (user clicked another item)');
+        return;
+      }
       console.error('Error fetching volumes:', error);
-      // Fallback: show empty state or error message?
-      // For now, allow empty state to show naturally
     } finally {
-      setLoadingVolumes(false);
+      // Only reset loading if this is still the active request
+      if (volumeFetchControllerRef.current === controller) {
+        setLoadingVolumes(false);
+      }
     }
   };
 
-  // Open drawer for volume selection
+  // Open drawer for volume selection (with spam protection)
   const openDrawer = async (manga: Book) => {
+    // Spam protection: ignore if already opening for the same manga
+    if (selectedManga?.id === manga.id && drawerOpen) {
+      return;
+    }
+
+    // If loading, cancel previous and start new
+    // (AbortController already handles API cancellation)
+
     setSelectedManga(manga);
     setDrawerOpen(true);
 

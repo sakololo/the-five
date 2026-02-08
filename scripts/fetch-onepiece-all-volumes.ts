@@ -39,9 +39,6 @@ async function fetchPage(page: number): Promise<{ items: RakutenItem[], pageCoun
         booksGenreId: '001001', // Manga
         outOfStockFlag: '1',    // Include out of stock
         title: 'ONE PIECE',     // Search by title
-        publisherName: '集英社', // Publisher filter
-        author: '尾田 栄一郎',  // Author filter
-        sort: 'releaseDate',    // Sort by release date
     });
 
     const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;

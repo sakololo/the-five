@@ -262,7 +262,7 @@ function SortableBookItem({ book, index, onRemove }: SortableBookItemProps) {
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, touchAction: 'none' }}
       className="flex flex-col items-center gap-1 relative group"
     >
       <div
@@ -1168,14 +1168,11 @@ export default function Home() {
                     <p className="text-xs sm:text-sm text-gray-400">
                       {selectedBooks.length === 5 ? (
                         <>
-                          {/* Mobile: show long-press message */}
-                          <span className="sm:hidden animate-pulse text-blue-400">
-                            長押しで並び替え
-                          </span>
-                          {/* Desktop: show drag message */}
+                          {/* Desktop only: show drag message */}
                           <span className="hidden sm:inline animate-pulse text-blue-400">
                             ドラッグで並び替え
                           </span>
+                          {/* Mobile: no message (drag disabled) */}
                         </>
                       ) : (
                         <span className="text-gray-400">本を選んでください（{selectedBooks.length}/5冊）</span>

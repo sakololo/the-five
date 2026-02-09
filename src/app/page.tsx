@@ -26,7 +26,7 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -1127,7 +1127,7 @@ export default function Home() {
                   >
                     <SortableContext
                       items={selectedBooks.map((b) => `${b.manga.id}-${b.volume}`)}
-                      strategy={horizontalListSortingStrategy}
+                      strategy={rectSortingStrategy}
                     >
                       {/* 2-row layout: Top row (3 books), Bottom row (2 books) */}
                       <div className="flex flex-col items-center gap-4 md:gap-8 w-full">

@@ -1069,7 +1069,6 @@ export default function Home() {
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-gray-800 mb-1">プレビュー</h2>
               <p className="text-sm text-gray-500">この順番で表紙が並びます</p>
-              <p className="text-xs text-gray-400 mt-1 md:hidden">※ ドラッグで順番を変更できます</p>
             </div>
 
             <div className="flex justify-center w-full px-2 md:px-0">

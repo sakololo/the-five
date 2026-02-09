@@ -17,7 +17,6 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
-  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -414,17 +413,11 @@ export default function Home() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   */
 
-  // DnD Kit sensors
+  // DnD Kit sensors - PC only (TouchSensor removed for mobile UX)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {

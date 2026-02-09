@@ -200,9 +200,10 @@ export function normalizeSearchQuery(query: string): NormalizedQuery {
     if (aliasResult) {
         // First Token Only アプローチにより、aliasResult.resolved はすでに完全な正規化済みクエリ
         // 部分置換ロジックは不要（ONE PIECEースバグの原因だった）
+        // FIX: normalizeCharacters() を適用して「の」→「ノ」変換を行う
         return {
             normalized: aliasResult.resolved,
-            normalizedForMatching: normalizeSeparators(aliasResult.resolved),
+            normalizedForMatching: normalizeSeparators(normalizeCharacters(aliasResult.resolved)),
             original,
             targetVolume: volume,
             wasAliasResolved: true,

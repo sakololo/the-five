@@ -83,20 +83,53 @@ export async function GET(request: NextRequest) {
         // sort: 'standard',    // Default sort
     });
 
+
     const apiUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${params.toString()}`;
 
     try {
-        const response = await fetch(apiUrl, { cache: 'no-store' });
+        // Fetch page 1
+        const response1 = await fetch(apiUrl, { cache: 'no-store' });
 
-        if (!response.ok) {
-            if (response.status === 429) {
+        if (!response1.ok) {
+            if (response1.status === 429) {
                 return NextResponse.json({ error: 'Upstream API Rate Limit' }, { status: 429 });
             }
-            return NextResponse.json({ error: 'Upstream API Error' }, { status: response.status });
+            return NextResponse.json({ error: 'Upstream API Error' }, { status: response1.status });
         }
 
-        const data = await response.json();
-        const items: any[] = data.Items || [];
+        const data1 = await response1.json();
+        let items: any[] = data1.Items || [];
+
+        // Fetch pages 2 and 3 if more pages exist (for series with 30+ volumes)
+        const totalPages = data1.pageCount || 1;
+
+        // Helper function to fetch additional page
+        const fetchPage = async (pageNum: number): Promise<any[]> => {
+            try {
+                const pageParams = new URLSearchParams(params);
+                pageParams.set('page', String(pageNum));
+                const pageUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?${pageParams.toString()}`;
+
+                const response = await fetch(pageUrl, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.Items || [];
+                }
+            } catch {
+                // Fail silently for extra pages
+            }
+            return [];
+        };
+
+        // Fetch pages 2 and 3 if they exist (total up to 90 items)
+        if (totalPages > 1) {
+            const page2Items = await fetchPage(2);
+            items = items.concat(page2Items);
+        }
+        if (totalPages > 2) {
+            const page3Items = await fetchPage(3);
+            items = items.concat(page3Items);
+        }
 
         // 4. Transform & Sort
         const books = items.map((item: any) => {
@@ -129,9 +162,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             books: books,
             count: books.length,
-            totalItems: data.count || 0, // Rakuten API returns total count
-            page: data.page || 1,
-            pageCount: data.pageCount || 1,
+            totalItems: data1.count || 0, // Rakuten API returns total count
+            page: data1.page || 1,
+            pageCount: data1.pageCount || 1,
         });
 
     } catch (error) {

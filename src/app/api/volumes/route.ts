@@ -122,11 +122,15 @@ export async function GET(request: NextRequest) {
         };
 
         // Fetch pages 2 and 3 if they exist (total up to 90 items)
+        // Rate limit: Rakuten API allows 1 request per second
+        // Adding 1.5s delay for safety margin (50% buffer)
         if (totalPages > 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay
             const page2Items = await fetchPage(2);
             items = items.concat(page2Items);
         }
         if (totalPages > 2) {
+            await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay
             const page3Items = await fetchPage(3);
             items = items.concat(page3Items);
         }

@@ -7,7 +7,7 @@ export const FIXED_POPULAR_TITLES = [
     '鬼滅の刃',
     '呪術廻戦',
     'NARUTO',
-    'ドラゴンボール',
+
     'SLAM DUNK',
     'ハイキュー!!',
     '僕のヒーローアカデミア',
@@ -16,7 +16,7 @@ export const FIXED_POPULAR_TITLES = [
 
     // 少女漫画（5作品）
     '君に届け',
-    'NANA',
+
     'フルーツバスケット',
     'ちはやふる',
     '暁のヨナ',
@@ -44,7 +44,7 @@ export const TOTAL_VOLUMES_MAPPING: Record<string, number> = {
     '鬼滅の刃': 23,
     '呪術廻戦': 28,
     'NARUTO': 72,
-    'ドラゴンボール': 42,
+
     'SLAM DUNK': 31,
     'ハイキュー!!': 45,
     '僕のヒーローアカデミア': 42,
@@ -53,7 +53,7 @@ export const TOTAL_VOLUMES_MAPPING: Record<string, number> = {
 
     // 少女漫画
     '君に届け': 30,
-    'NANA': 21,
+
     'フルーツバスケット': 23,
     'ちはやふる': 50,
     '暁のヨナ': 44,

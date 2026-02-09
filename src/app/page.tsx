@@ -48,7 +48,6 @@ const RECOMMENDED_MANGA = [
   { title: 'ハイキュー!!', author: '古舘春一', category: '人気作品' },
 ];
 // Types
-const PUBLISHERS = ['all', '集英社', '講談社', '小学館', 'KADOKAWA', 'スクウェア・エニックス', '白泉社'];
 
 interface SelectedBook {
   manga: Book;
@@ -155,7 +154,6 @@ const MOCK_MANGA_DATA: Book[] = [
   { id: "73", title: "ケロロ軍曹", reading: "けろろぐんそう", author: "吉崎観音", genre: "少年", publisher: "KADOKAWA", totalVolumes: 33, coverColor: "from-green-500 to-yellow-400", coverUrl: "https://placehold.co/150x220/22c55e/ffffff?text=ケロロ" },
 ];
 
-const GENRES = ['all', '少年', '少女', '青年', 'SF', 'ファンタジー', '恋愛'];
 
 // Mock AI appraisals - 平易化・構造固定・イジりしろ強化版
 const MOCK_APPRAISALS: Record<string, { titles: string[]; analysis: string }> = {
@@ -300,8 +298,6 @@ export default function Home() {
 
 
   const [selectedBooks, setSelectedBooks] = useState<SelectedBook[]>([]);
-  const [currentGenre, setCurrentGenre] = useState('all');
-  const [currentPublisher, setCurrentPublisher] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   // mode は 'gallery' に固定（本棚テーマは著作権配慮で削除）
   const mode = 'gallery';
@@ -565,30 +561,13 @@ export default function Home() {
     // Red Team Fix: If query exists, ALWAYS return API results (even if empty)
     // Do not fallback to popular manga, to avoid confusing the user.
     if (searchQuery.trim()) {
-      // Apply genre and publisher filters if needed
-      let filtered = apiSearchResults;
-
-      if (currentGenre !== 'all') {
-        filtered = filtered.filter(manga => manga.genre === currentGenre);
-      }
-
-      if (currentPublisher !== 'all') {
-        filtered = filtered.filter(manga => manga.publisher?.includes(currentPublisher));
-      }
-
-      return filtered;
+      return apiSearchResults;
     }
 
     // Otherwise, show popular manga data with real book covers from Rakuten API
-    // Note: Popular data is manually curated and doesn't need consolidation
-    const basicFiltered = (popularMangaData as any[]).filter((manga: any) => {
-      const matchesGenre = currentGenre === 'all' || manga.genre === currentGenre;
-      const matchesPublisher = currentPublisher === 'all' || manga.publisher?.includes(currentPublisher);
-      return matchesGenre && matchesPublisher;
-    });
-
-    return basicFiltered;
+    return popularMangaData as any[];
   })();
+
 
   // API search function
   const performApiSearch = async (query: string) => {
@@ -1303,49 +1282,10 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Genre Section with Label */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500">カテゴリーから探す</p>
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {GENRES.map((genre) => (
-                    <button
-                      key={genre}
-                      onClick={() => setCurrentGenre(genre)}
-                      className={`genre-chip px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition ${currentGenre === genre
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md'
-                        : 'bg-white text-gray-600 hover:bg-gray-50'
-                        }`}
-                    >
-                      {genre === 'all' ? 'すべて' : genre}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Publisher Section */}
-              <div className="space-y-2 mt-4">
-                <p className="text-xs font-medium text-gray-500">出版社から探す</p>
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {PUBLISHERS.map((publisher) => (
-                    <button
-                      key={publisher}
-                      onClick={() => setCurrentPublisher(publisher)}
-                      className={`
-                        px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2
-                        ${currentPublisher === publisher
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-200'
-                          : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-500'
-                        }
-                      `}
-                    >
-                      {publisher === 'all' ? 'すべて' : publisher}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Recommendations when search is empty */}
-              {!searchQuery.trim() && currentGenre === 'all' && (
+              {!searchQuery.trim() && (
                 <div className="mt-6 pt-4 border-t border-gray-200/50">
                   <p className="text-xs font-medium text-gray-500 mb-3">みんなが選んでいる作品</p>
                   <div className="flex flex-wrap gap-2">

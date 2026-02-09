@@ -738,7 +738,7 @@ export default function Home() {
           totalVolumes: 110,
           coverColor: 'from-red-400 to-orange-500',
           itemUrl: `https://books.rakuten.co.jp/rb/${v.isbn}/`,
-          volumeNumber: extractVolumeNumber(v.title),
+          volumeNumber: v.volume,
         }));
 
         setVolumeData(prev => ({
@@ -1456,7 +1456,11 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-bold text-gray-800">{selectedManga?.title}</h3>
                   <p className="text-sm text-gray-500">{selectedManga?.author}</p>
-                  <p className="text-xs text-blue-600 font-medium mt-1">全{selectedManga?.totalVolumes}巻</p>
+                  <p className="text-xs text-blue-600 font-medium mt-1">全{(() => {
+                    const vols = volumeData[selectedManga?.id || ''] || [];
+                    const maxVolNum = vols.length > 0 ? Math.max(...vols.map(v => v.volumeNumber || 0)) : 0;
+                    return maxVolNum || selectedManga?.totalVolumes || '?';
+                  })()}巻</p>
                 </div>
               </div>
 
@@ -1467,13 +1471,19 @@ export default function Home() {
                   <p className="text-xs text-gray-500 mb-2">巻データを読み込み中...</p>
                 )}
                 <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                  {Array.from({ length: selectedManga?.totalVolumes || 0 }, (_, i) => i + 1).map((vol) => {
+                  {(() => {
+                    const vols = volumeData[selectedManga?.id || ''] || [];
+                    const maxVolNum = vols.length > 0 ? Math.max(...vols.map(v => v.volumeNumber || 0)) : 0;
+                    const totalVols = maxVolNum || selectedManga?.totalVolumes || 0;
+                    return Array.from({ length: totalVols }, (_, i) => i + 1);
+                  })().map((vol) => {
                     const isSelected = selectedBooks.some(b => b.manga.id === selectedManga?.id && b.volume === vol);
 
                     // Try to get cover from API-fetched volume data
                     const volumeBooks = volumeData[selectedManga?.id || ''] || [];
-                    const volumeBook = volumeBooks.find(b => extractVolumeNumber(b.title) === vol);
+                    const volumeBook = volumeBooks.find(b => b.volumeNumber === vol);
                     const volumeCoverUrl = volumeBook?.coverUrl;
+
 
                     return (
                       <div

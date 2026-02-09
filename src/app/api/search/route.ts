@@ -275,7 +275,7 @@ function transformBooks(items: Record<string, unknown>[]): BookData[] {
     const coverUrl = (book.largeImageUrl || book.mediumImageUrl || book.smallImageUrl || '') as string;
 
     books.push({
-      id: String(books.length + 1),
+      id: isbn || `${title}-${book.author || ''}`,
       title: title,
       author: (book.author || '') as string,
       publisher: (book.publisherName || '') as string,

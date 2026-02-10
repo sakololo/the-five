@@ -7,9 +7,6 @@ interface ShelfDisplayProps {
 }
 
 export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
-    // 微妙な回転角度（交互に配置）
-    const rotations = ['rotate-1', '-rotate-1', 'rotate-[1.5deg]', '-rotate-[0.5deg]', 'rotate-1'];
-
     return (
         <div className="w-full max-w-sm mx-auto px-6 flex flex-col gap-32 sm:gap-40 pb-32">
             {shelf.books.map((book, index) => (
@@ -19,15 +16,14 @@ export default function ShelfDisplay({ shelf }: ShelfDisplayProps) {
                         href={book.itemUrl || `https://books.rakuten.co.jp/search?sitem=${encodeURIComponent(book.title)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`
+                        className="
                             w-56 sm:w-64 aspect-[2/3] 
                             bg-white 
                             shadow-2xl shadow-gray-200 
-                            ${rotations[index % 5]} 
                             transition-transform duration-700 
-                            group-hover:rotate-0 group-hover:scale-105
+                            group-hover:scale-105
                             overflow-hidden
-                        `}
+                        "
                         title={`${book.title} ${book.volume}巻 - 楽天ブックスで見る`}
                     >
                         <img

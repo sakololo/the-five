@@ -1232,10 +1232,7 @@ export default function Home() {
 
           {/* Search Section */}
           <section id="search-section" className="mb-8">
-            <div className="text-center mb-3">
-              <h2 className="text-base font-bold text-gray-800 mb-0.5">本を探す</h2>
-              <p className="text-xs text-gray-500">タイトル・作者名で検索、またはジャンルで絞り込み</p>
-            </div>
+
 
             <div className="glass-card rounded-3xl p-6 shadow-xl">
               <div className="mb-6">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { checkRateLimit } from '@/lib/search/security/rate-limiter';
-import { normalizeSearchQuery } from '@/lib/search/core/normalizer';
+import { normalizeSearchQuery, normalizeCharacters } from '@/lib/search/core/normalizer';
 import { scoreAndSortBooks, filterAdultContent, type BookData } from '@/lib/search/core/scorer';
 import { deduplicateBooks } from '@/lib/search/core/deduplicator';
 import { evaluateSearchState } from '@/lib/search/search-orchestrator';
@@ -51,12 +51,19 @@ function validateOrigin(request: NextRequest): boolean {
   ) || origin === '' && referer === '';
 }
 
-// Fetch ISBN from Google Books API (with optional AbortSignal)
-async function fetchIsbnFromGoogle(query: string, signal?: AbortSignal): Promise<string | null> {
+// Google Books API result type
+interface GoogleBooksResult {
+  isbn: string | null;
+  title: string | null;
+}
+
+// Fetch ISBN and title from Google Books API (with optional AbortSignal)
+async function fetchFromGoogle(query: string, signal?: AbortSignal): Promise<GoogleBooksResult> {
+  const nullResult: GoogleBooksResult = { isbn: null, title: null };
   const googleApiKey = process.env.GOOGLE_BOOKS_API_KEY;
   if (!googleApiKey) {
-    console.warn('Configuration Warning: GOOGLE_BOOKS_API_KEY is not set. ISBN fallback disabled.');
-    return null;
+    console.warn('Configuration Warning: GOOGLE_BOOKS_API_KEY is not set. Google Books fallback disabled.');
+    return nullResult;
   }
 
   try {
@@ -69,34 +76,40 @@ async function fetchIsbnFromGoogle(query: string, signal?: AbortSignal): Promise
       } else {
         console.error(`Google Books API Error: ${response.status} ${response.statusText}`);
       }
-      return null;
+      return nullResult;
     }
 
     const data = await response.json();
     const items = data.items;
 
     if (!items || items.length === 0) {
-      return null;
+      return nullResult;
     }
 
     const volumeInfo = items[0]?.volumeInfo;
+
+    // Extract title (Title Bridge)
+    const googleTitle = volumeInfo?.title ? String(volumeInfo.title) : null;
+
+    // Extract ISBN
     const identifiers = volumeInfo?.industryIdentifiers;
+    let isbn: string | null = null;
 
-    if (!identifiers) {
-      return null;
+    if (identifiers) {
+      const isbn13 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_13');
+      if (isbn13) {
+        isbn = isbn13.identifier;
+      } else {
+        const isbn10 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_10');
+        if (isbn10) {
+          isbn = isbn10.identifier;
+        }
+      }
     }
 
-    const isbn13 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_13');
-    if (isbn13) {
-      return isbn13.identifier;
-    }
+    console.log(`Google Books Bridge: query="${query}" → title="${googleTitle}", isbn="${isbn}"`);
 
-    const isbn10 = identifiers.find((id: { type: string; identifier: string }) => id.type === 'ISBN_10');
-    if (isbn10) {
-      return isbn10.identifier;
-    }
-
-    return null;
+    return { isbn, title: googleTitle };
   } catch (error) {
     const isAbortError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
     if (isAbortError) {
@@ -104,7 +117,7 @@ async function fetchIsbnFromGoogle(query: string, signal?: AbortSignal): Promise
     } else {
       console.error('Google Books API Network Failure:', error);
     }
-    return null;
+    return nullResult;
   }
 }
 
@@ -115,15 +128,16 @@ const GOOGLE_ERROR_LOG_LIMIT = 5;
 const GOOGLE_ERROR_WINDOW_MS = 60000;  // 1分
 
 /**
- * タイムアウト付きでGoogle Books APIからISBNを取得
+ * タイムアウト付きでGoogle Books APIからISBN+タイトルを取得
  * エラーログはレート制限付き（1分に5回まで）
  */
-async function fetchIsbnWithTimeout(query: string): Promise<string | null> {
+async function fetchFromGoogleWithTimeout(query: string): Promise<GoogleBooksResult> {
+  const nullResult: GoogleBooksResult = { isbn: null, title: null };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), GOOGLE_TIMEOUT_MS);
 
   try {
-    return await fetchIsbnFromGoogle(query, controller.signal);
+    return await fetchFromGoogle(query, controller.signal);
   } catch (error) {
     const isAbortError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
 
@@ -153,12 +167,49 @@ async function fetchIsbnWithTimeout(query: string): Promise<string | null> {
       }
     }
 
-    return null;
+    return nullResult;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
+// Clean Google Books API title for Rakuten search
+// - Remove volume numbers (「（７）」「 13」etc.)
+// - Normalize full-width chars to half-width
+// - Remove subtitle markers like [雑誌]
+//
+// ⚠ 重要: 変換順序に依存関係あり（変更禁止）
+//   Step 1（全角→半角）が先に実行されることで、
+//   Step 3 の \d+ が全角数字（例: ７）にもマッチ可能になる。
+//   この順序を変更すると巻数除去が壊れる。
+function cleanGoogleTitle(title: string): string {
+  let cleaned = title;
+
+  // Step 1: 全角英数字 → 半角（※ Step 3 より先に実行すること）
+  cleaned = cleaned.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - 0xFEE0)
+  );
+
+  // Step 2: 全角スペース → 半角
+  cleaned = cleaned.replace(/\u3000/g, ' ');
+
+  // Step 3: 巻数表記を除去: （７）、（１２）、(7)（※ Step 1 で半角化済み前提）
+  cleaned = cleaned.replace(/[（(]\s*\d+\s*[）)]\s*$/, '');
+
+  // Step 4: 末尾の巻数を除去: " 13", " 6"
+  cleaned = cleaned.replace(/\s+\d+\s*$/, '');
+
+  // Step 5: [雑誌] 等の角括弧タグを除去
+  cleaned = cleaned.replace(/\s*\[.*?\]\s*$/, '');
+
+  return cleaned.trim();
+}
+
+// TODO: [スケーリング対策] fetchBooksByKeyword にサーバーサイドキャッシュを導入
+// 同一クエリの楽天レスポンスを 5〜10分間キャッシュ（Upstash Redis 推奨）
+// これにより DAU 300→3,000+ にスケール可能。
+// 参照: review_report.md の RISK-1 および IMPROVE セクション
+//
 // Fetch books from Rakuten API by title (with keyword fallback)
 async function fetchBooksByKeyword(
   appId: string,
@@ -369,22 +420,39 @@ export async function GET(request: NextRequest) {
 
     console.log(`Normalized: "${normalizedQuery}", ForMatching: "${normalizedForMatching}", Volume: ${targetVolume}, Alias: ${wasAliasResolved}`);
 
-    // Step 2: Try to get ISBN from Google Books API (with timeout)
-    const targetIsbn = await fetchIsbnWithTimeout(normalizedQuery);
+    // Step 2: Get ISBN + Title from Google Books API (Title Bridge)
+    const googleResult = await fetchFromGoogleWithTimeout(normalizedQuery);
+    const { isbn: targetIsbn, title: googleTitle } = googleResult;
 
-    // Step 3: Fetch from APIs
+    // Step 3: Fetch from APIs (parallel)
     const searchPromises: Promise<Record<string, unknown>[]>[] = [];
 
+    // 3a: ISBN search (if Google returned an ISBN)
     if (targetIsbn) {
       searchPromises.push(fetchBooksByIsbn(appId, targetIsbn));
     } else {
       searchPromises.push(Promise.resolve([]));
     }
 
+    // 3b: Normalized query search
     searchPromises.push(fetchBooksByKeyword(appId, normalizedQuery));
 
+    // 3c: Original query search (if different from normalized)
     if (query.trim() !== normalizedQuery) {
       searchPromises.push(fetchBooksByKeyword(appId, query.trim()));
+    } else {
+      searchPromises.push(Promise.resolve([]));
+    }
+
+    // 3d: Google Title Bridge search (if Google returned a different title)
+    // Clean Google title: remove volume info, normalize full-width chars
+    const cleanedGoogleTitle = googleTitle ? cleanGoogleTitle(googleTitle) : null;
+    const shouldUseGoogleTitle = cleanedGoogleTitle
+      && cleanedGoogleTitle !== normalizedQuery
+      && cleanedGoogleTitle !== query.trim();
+    if (shouldUseGoogleTitle) {
+      console.log(`Title Bridge: "${googleTitle}" → cleaned: "${cleanedGoogleTitle}"`);
+      searchPromises.push(fetchBooksByKeyword(appId, cleanedGoogleTitle));
     } else {
       searchPromises.push(Promise.resolve([]));
     }
@@ -397,18 +465,50 @@ export async function GET(request: NextRequest) {
       return [];
     });
 
-    const [isbnResults, normalizedResults, originalResults] = successfulResults;
+    const [isbnResults, normalizedResults, originalResults, googleTitleResults] = successfulResults;
     const allItems = [
       ...(isbnResults || []),
       ...(normalizedResults || []),
-      ...(originalResults || [])
+      ...(originalResults || []),
+      ...(googleTitleResults || [])
     ];
 
     // Step 4: Transform to BookData
     const books = transformBooks(allItems);
 
-    // Step 5: Score and Sort (using normalizedForMatching for better matching)
-    const scoredBooks = scoreAndSortBooks(books, normalizedForMatching, targetVolume);
+    // Step 5: Score and Sort
+    // If Title Bridge was used, score with BOTH original query AND Google title,
+    // then take the higher score for each book (fixes cross-language scoring gap)
+    let scoredBooks: ReturnType<typeof scoreAndSortBooks>;
+    if (shouldUseGoogleTitle && cleanedGoogleTitle) {
+      const googleMatchQuery = normalizeCharacters(cleanedGoogleTitle).replace(/\s+/g, ' ').trim();
+
+      const originalScored = scoreAndSortBooks(books, normalizedForMatching, targetVolume);
+      const googleScored = scoreAndSortBooks(books, googleMatchQuery, targetVolume);
+
+      // ID-based merge: build a Map from googleScored for O(1) lookup
+      const googleScoreMap = new Map<string, number>();
+      for (const book of googleScored) {
+        googleScoreMap.set(String(book.id), book.score);
+      }
+
+      // For each book, take the higher score between original and Google
+      scoredBooks = originalScored.map(book => {
+        const bookId = String(book.id);
+        const googleScore = googleScoreMap.get(bookId) ?? 0;
+        if (googleScore > book.score) {
+          // Find the full scored book from googleScored to preserve scoreBreakdown
+          const googleBook = googleScored.find(g => String(g.id) === bookId);
+          return googleBook ?? book;
+        }
+        return book;
+      });
+
+      // Re-sort after merge
+      scoredBooks.sort((a, b) => b.score - a.score);
+    } else {
+      scoredBooks = scoreAndSortBooks(books, normalizedForMatching, targetVolume);
+    }
 
     // Step 5.5: Deduplicate by Series
     const deduplicatedBooks = deduplicateBooks(scoredBooks);
